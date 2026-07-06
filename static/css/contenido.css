@@ -1,0 +1,49 @@
+.derecha_context {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    pointer-events: none;
+}
+.fondo {
+    background-image: url("/static/img/degr.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
+}
+.col-12 {
+    position: relative;
+    z-index: 22;
+}
+
+
+.titulo{
+    color: var(--orange-600);
+}
+
+.btn_primario:hover{
+    border:2px solid var(--orange-600);
+    background-color: white;
+    color: var(--slate-900);
+    font-width: 2rem;
+}
+
+.btn_primario{
+    background-color: var(--orange-600);
+    color: white;
+    border: 2px solid var(--orange-600);
+}
+
+.textos_secundarios{
+    color: var(--cyan-500);
+}
+
+.cn{
+    padding: 2.5rem;
+    border-radius: 0.5rem;
+    z-index: 100;
+    position: relative;
+    width: 32rem;
+}

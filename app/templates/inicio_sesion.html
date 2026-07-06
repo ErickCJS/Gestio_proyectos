@@ -1,0 +1,100 @@
+{% extends '/maestras/cuenta.html' %}
+
+{% block contenido_cuenta %}
+<div class="cn shadow-lg bg-white">
+    <div class="d-flex  flex-column">
+        <div class="text-end ">
+            <a href="/" class="text-decoration-none textos_secundarios">
+                <i class="bi bi-arrow-left"></i>
+                Volver al inicio
+            </a>
+        </div>
+        <div class="text-center g-0">
+            <h2 class="fw-bold mt-1 titulo ">
+                Iniciar Sesión
+            </h2>
+        </div>
+          
+    </div>
+
+    <p class="text-secondary mb-4 text-center">
+        Accede a tu cuenta para gestionar los riesgos de seguridad.
+    </p>
+
+    <form>
+
+        <div class="mb-3">
+
+            <label class="form-label fw-semibold">
+                Correo electrónico
+            </label>
+
+            <div class="input-group">
+
+                <span class="input-group-text">
+                    <i class="bi bi-envelope"></i>
+                </span>
+
+                <input type="email" class="form-control" placeholder="correo@ejemplo.com">
+
+            </div>
+
+        </div>
+
+        <div class="mb-3">
+
+            <label class="form-label fw-semibold">
+                Contraseña
+            </label>
+
+            <div class="input-group">
+
+                <span class="input-group-text">
+                    <i class="bi bi-lock"></i>
+                </span>
+
+                <input type="password" class="form-control" placeholder="Ingresa tu contraseña">
+
+                <button class="btn btn-outline-secondary" type="button">
+                    <i class="bi bi-eye-slash"></i>
+                </button>
+
+            </div>
+
+        </div>
+
+        <div class="d-flex justify-content-end mb-3">
+            <a href="#" class="text-decoration-none textos_secundarios">
+                ¿Olvidaste tu contraseña?
+            </a>
+
+        </div>
+
+        <button class="btn btn-primary w-100 py-2 btn_primario">
+            <i class="bi bi-person me-1"></i>
+
+            Iniciar Sesión
+        </button>
+
+    </form>
+
+    <div class="d-flex align-items-center my-4">
+
+        <hr class="flex-grow-1">
+
+        <span class="mx-3 text-secondary">
+            ¿No tienes una cuenta?
+        </span>
+
+        <hr class="flex-grow-1">
+
+    </div>
+
+    <div class="text-center ">
+        <a href="/registrar" class="text-decoration-none fw-semibold textos_secundarios">
+            Crear una cuenta
+        </a>
+    </div>
+
+</div>
+{% endblock%}

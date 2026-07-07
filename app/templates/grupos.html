@@ -4,7 +4,7 @@
 <span>Visualiza todos los Grupos de tu organización</span>
 {% endblock %}
 {% block accion_contenido %}
-<button class="btn btn-sm btn_primario"> Nuevo grupo</button>
+<button class="btn btn-sm btn_primario" onclick="mostrar_modal('ngrupo')"> Nuevo grupo</button>
 {% endblock %}
 
 {% block contenido %}
@@ -18,7 +18,7 @@
                     <th>Descripción</th>
                     <th>Integrantes</th>
                     <th>Estado</th>
-                    <th>Acciones</th>
+                    <th class="text-center">Acciones</th>
                 </tr>
             </thead>
 
@@ -32,7 +32,7 @@
                     <td>
                         <span class="badge bg-success">Activo</span>
                     </td>
-                    <td class="acciones">
+                    <td class="acciones text-center">
                         <button class="btn btn-sm btn-outline-primary"><i class="bi bi-eye-fill text-primary"></i></button>
                         <button class="btn btn-sm btn-outline-success "><i class="bi bi-toggle-on text-success"></i></button>
                         <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash2-fill text-danger"></i></button>

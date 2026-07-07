@@ -154,7 +154,11 @@
                     {% endblock %}
                 </div>
             </div>
-
+            {% if mensaje %}
+            <div class="alert alert-success">
+                {{ mensaje }}
+            </div>
+            {% endif %}
         </div>
     </div>
 

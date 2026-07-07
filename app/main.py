@@ -2,7 +2,10 @@ from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
-
+import conexion as conexion
+#
+#
+#
 
 app = FastAPI()
 
@@ -42,3 +45,5 @@ def dashboard(request:Request):
         name = "/maestras/dashboard.html",
         request=request
     )
+
+conexion.conectar()

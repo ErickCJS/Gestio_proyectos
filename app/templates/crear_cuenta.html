@@ -1,7 +1,7 @@
 {% extends '/maestras/cuenta.html' %}
 
 {% block contenido_cuenta %}
-<div class="cn cuenta-card shadow-lg bg-white">
+<div class="cn shadow-lg bg-white">
     <div class="d-flex flex-column">
 
         <div class="text-end">
@@ -23,7 +23,7 @@
         Completa la información para crear una nueva cuenta y acceder a la plataforma.
     </p>
 
-    <form>
+    <form method="POST" action="/registrar">
 
         <!-- Nombre -->
         <div class="mb-3">
@@ -36,7 +36,7 @@
                     <i class="bi bi-person"></i>
                 </span>
 
-                <input type="text" class="form-control" placeholder="Ingresa tu nombre completo" required>
+                <input type="text" name="nombre" class="form-control" placeholder="Ingresa tu nombre completo" value="{{ datos.nombre if datos else '' }}" required>
             </div>
         </div>
 
@@ -51,7 +51,7 @@
                     <i class="bi bi-envelope"></i>
                 </span>
 
-                <input type="email" class="form-control" placeholder="correo@ejemplo.com" required>
+                <input type="email" name="correo" class="form-control" placeholder="correo@ejemplo.com" value="{{ datos.correo if datos else '' }}" required>
             </div>
         </div>
 
@@ -66,7 +66,7 @@
                     <i class="bi bi-lock"></i>
                 </span>
 
-                <input type="password" class="form-control" placeholder="Crea una contraseña" required>
+                <input type="password" name="password" class="form-control" placeholder="Crea una contraseña" required>
 
                 <button class="btn btn-outline-secondary" type="button">
                     <i class="bi bi-eye-slash"></i>

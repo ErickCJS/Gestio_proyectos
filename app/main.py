@@ -21,22 +21,6 @@ def inicio(request:Request):
         name="principal.html"
     )
 
-
-@app.get("/iniciar_sesion")
-def inicio(request:Request):
-    return templates.TemplateResponse(
-        request=request,
-        name="inicio_sesion.html"
-    )
-
-@app.get("/registrar")
-def inicio(request:Request):
-    return templates.TemplateResponse(
-        request=request,
-        name="crear_cuenta.html"
-    )
-
-
 @app.get('/dashboard')
 def dashboard(request:Request):
     return templates.TemplateResponse(
@@ -45,3 +29,4 @@ def dashboard(request:Request):
     )
 
 procesos.rutas(app, templates)
+usuario.rutas(app, templates)

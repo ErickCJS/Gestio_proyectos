@@ -1,4 +1,5 @@
 from fastapi import Request, Form
+from fastapi.responses import JSONResponse
 from fastapi.responses import RedirectResponse
 import bcrypt
 import re
@@ -363,6 +364,41 @@ def rutas(app, templates):
             "/dashboard",
             status_code=302
         )
+
+    # ==========================
+    # BUSCAR PERSONAS
+    # ==========================
+    @app.get("/personas/buscar")
+    def buscar_personas(q: str = ""):
+        termino = q.strip()
+
+        if termino == "":
+            return JSONResponse([])
+
+        db = conexion.conectar()
+        if db == "":
+            return JSONResponse([])
+
+        personas = []
+
+        with db.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    nombres_completo,
+                    correo
+                FROM usuario
+                WHERE nombres_completo LIKE %s
+                   OR correo LIKE %s
+                ORDER BY nombres_completo ASC
+                LIMIT 10
+                """,
+                (f"%{termino}%", f"%{termino}%")
+            )
+            personas = cursor.fetchall()
+
+        db.close()
+        return JSONResponse(personas)
 
 
     # ==========================

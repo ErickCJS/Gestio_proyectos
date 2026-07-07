@@ -17,6 +17,7 @@
                     <tr>
                         <th>Código</th>
                         <th>Nombre del grupo</th>
+                        <th class="text-center">Integrantes</th>
                         <th>Descripción</th>
                         <th class="text-center">Acciones</th>
                     </tr>
@@ -27,13 +28,30 @@
                         <tr>
                             <td>GRP-{{ "%03d"|format(grupo.id_grupo) }}</td>
                             <td>{{ grupo.nombre }}</td>
+                            <td class="text-center">
+                                <span class="badge badge-soft-role" id="count-integrantes-{{ grupo.id_grupo }}">
+                                    {{ grupo.total_integrantes or 0 }}
+                                </span>
+                            </td>
                             <td>{{ grupo.descripcion or '' }}</td>
-                            <td class="text-center acciones">
-                                <div class="d-inline-flex gap-1">
+                            <td class="text-center ">
+                                <div class="d-inline-flex gap-1 acciones">
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-secondary"
+                                        title="Integrantes del grupo"
+                                        data-id-grupo="{{ grupo.id_grupo }}"
+                                        data-nombre-grupo="{{ grupo.nombre }}"
+                                        onclick="abrir_integrantes_grupo_desde_btn(this)">
+                                        <i class="bi bi-person-plus-fill text-secondary"></i>
+                                    </button>
                                     <button
                                         type="button"
                                         class="btn btn-sm btn-outline-primary"
-                                        onclick='ver_grupo({{ grupo.id_grupo }}, {{ grupo.nombre|tojson }}, {{ (grupo.descripcion or "")|tojson }})'>
+                                        data-id-grupo="{{ grupo.id_grupo }}"
+                                        data-nombre-grupo="{{ grupo.nombre }}"
+                                        data-descripcion-grupo="{{ grupo.descripcion or '' }}"
+                                        onclick="ver_grupo_desde_btn(this)">
                                         <i class="bi bi-eye-fill text-primary"></i>
                                     </button>
                                     <button
@@ -48,7 +66,7 @@
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="4" class="text-center text-secondary py-4">
+                            <td colspan="5" class="text-center text-secondary py-4">
                                 No hay grupos creados todavía.
                             </td>
                         </tr>
@@ -69,3 +87,6 @@
     </div>
     {% endif %}
 {% endblock %}
+{% block scripts %}
+    <script src="/static/js/grupos.js"></script>
+{% endblock%}

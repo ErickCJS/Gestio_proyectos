@@ -579,7 +579,6 @@
       text-align: left;
       min-height: calc(100vh - 92px);
       width: 100%;
-      max-width: 1280px;
       margin: 0 auto 1rem;
       box-shadow: var(--shadow-md);
       display: flex;
@@ -757,6 +756,26 @@
       .tabla-scroll {
           max-height: calc(100vh - 190px);
       }
+
+      .integrantes-hero {
+          flex-direction: column;
+          align-items: flex-start;
+      }
+
+      .integrantes-stats {
+          grid-template-columns: 1fr;
+      }
+
+      .integrantes-card-head {
+          flex-direction: column;
+          align-items: flex-start;
+      }
+
+      .alertas-flotantes {
+          top: 70px;
+          right: 0.75rem;
+          width: calc(100vw - 1.5rem);
+      }
   }
 
 .nombres_c{
@@ -782,9 +801,258 @@
     color: white !important;
 }
 
+.alertas-flotantes {
+    position: fixed;
+    top: 76px;
+    right: 1rem;
+    z-index: 2005;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    width: min(360px, calc(100vw - 2rem));
+    pointer-events: none;
+}
+
+.alerta-flotante {
+    pointer-events: auto;
+    border-radius: 0.95rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
+    padding: 0.85rem 0.9rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.45;
+    backdrop-filter: blur(10px);
+}
+
+.alerta-flotante.alert-success {
+    background: rgba(34, 197, 94, 0.95);
+    color: #FFFFFF;
+}
+
+.alerta-flotante.alert-warning {
+    background: rgba(245, 158, 11, 0.96);
+    color: #1F2937;
+}
+
+.alerta-flotante.alert-danger {
+    background: rgba(239, 68, 68, 0.95);
+    color: #FFFFFF;
+}
+
+.alerta-flotante .btn-close {
+    box-shadow: none !important;
+    opacity: 0.8;
+}
+
+.alerta-flotante .btn-close:hover {
+    opacity: 1;
+}
+
+.alerta-flotante-icon {
+    margin-top: 0.05rem;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+
 /* ===== MODAL ===== */
 .modal-dialog {
     max-width: 560px;
+}
+
+.modal-dialog.modal-xl.modal-integrantes {
+    max-width: 1140px;
+}
+
+.modal-dialog.modal-xl.modal-integrantes .modal-body {
+    padding: 1rem 1.05rem 1.1rem;
+}
+
+.modal-dialog.modal-xl.modal-integrantes .tabla-wrap {
+    margin-top: 0;
+}
+
+.integrantes-hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem 1.05rem;
+    border-radius: 1.1rem;
+    background:
+        radial-gradient(circle at top right, rgba(255, 102, 0, 0.16), transparent 26%),
+        linear-gradient(135deg, #0F172A 0%, #1E293B 58%, #334155 100%);
+    color: #FFFFFF;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+}
+
+.integrantes-hero-copy {
+    min-width: 0;
+}
+
+.integrantes-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.24rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.55rem;
+}
+
+.integrantes-title {
+    margin: 0;
+    font-size: 1.08rem;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.03em;
+}
+
+.integrantes-subtitle {
+    margin: 0.45rem 0 0;
+    max-width: 54ch;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.78rem;
+    line-height: 1.5;
+}
+
+.integrantes-hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: #FFFFFF;
+    font-size: 0.76rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.integrantes-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.7rem;
+}
+
+.integrantes-stat,
+.integrantes-card {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: linear-gradient(180deg, #FFFFFF 0%, #FBFBFC 100%);
+    border-radius: 1.05rem;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+}
+
+.integrantes-stat {
+    padding: 0.85rem 0.95rem;
+}
+
+.integrantes-stat-label {
+    display: block;
+    font-size: 0.64rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--slate-400);
+    margin-bottom: 0.25rem;
+    font-weight: 700;
+}
+
+.integrantes-stat-value {
+    display: block;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--slate-900);
+    line-height: 1.1;
+}
+
+.integrantes-card {
+    padding: 1rem;
+}
+
+.integrantes-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.9rem;
+}
+
+.integrantes-card-head h6 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: var(--slate-900);
+    letter-spacing: -0.01em;
+}
+
+.integrantes-card-head p {
+    margin: 0.2rem 0 0;
+    font-size: 0.74rem;
+    color: var(--slate-500);
+}
+
+.integrantes-search {
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06);
+    border-radius: 0.95rem;
+    overflow: hidden;
+}
+
+.tabla-integrantes-wrap {
+    border-radius: 0.95rem;
+}
+
+.tabla-integrantes thead th {
+    background: #F8FAFC;
+}
+
+.tabla-integrantes tbody tr {
+    background: #FFFFFF;
+}
+
+.tabla-vista-grupo .tabla-compacta thead th {
+    background: #F8FAFC;
+}
+
+.tabla-vista-grupo {
+    border-radius: 0.95rem;
+    overflow: hidden;
+}
+
+.avatar-mini {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--orange-500), var(--orange-700));
+    color: #FFFFFF;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.68rem;
+    font-weight: 800;
+    flex-shrink: 0;
+    box-shadow: 0 8px 18px rgba(255, 102, 0, 0.22);
+}
+
+.min-w-0 {
+    min-width: 0;
+}
+
+.badge-soft-role {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(255, 102, 0, 0.08);
+    color: var(--orange-700);
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
 }
 
 .modal-content {

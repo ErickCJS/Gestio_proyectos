@@ -149,6 +149,8 @@
         </div>
     </div>
 
+    <div class="alertas-flotantes" id="alertasFlotantes" aria-live="polite" aria-atomic="true"></div>
+
         <!-- Modal: Crear/Seleccionar Proyecto -->
         <div class="modal fade" id="projectModal" tabindex="-1" aria-labelledby="projectModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
@@ -170,6 +172,9 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/dashboard.js"> </script>
     <script src="/static/js/librerias.js"> </script>
+    {% block scripts %}
+        
+    {% endblock%}
 </body>
 
 </html>

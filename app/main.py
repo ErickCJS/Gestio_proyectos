@@ -3,9 +3,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 import conexion as conexion
-#
-#
-#
+from routes  import usuario, procesos
 
 app = FastAPI()
 
@@ -46,4 +44,4 @@ def dashboard(request:Request):
         request=request
     )
 
-conexion.conectar()
+procesos.rutas(app, templates)

@@ -82,12 +82,11 @@
 
                     <!-- Proyectos -->
                     <div class="nav-item-mg open">
-                        <button class="nav-link-mg" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#subProyectos" aria-expanded="true">
+                        <a href="/procesos" class="nav-link-mg">
                             <span class="nav-icon-mg"><i class="bi bi-diagram-3-fill"></i></span>
                             <span class="nav-label-mg">Procesos</span>
                             <span class="nav-badge badge-orange">4</span>
-                        </button>
+                        </a>
                     </div>
 
                 </div>
@@ -129,11 +128,11 @@
             </header>
 
             <!-- Contenido (placeholder) -->
-            <div class="content-area ">
+            <div class="content-area  ">
                 <div class="content-placeholder">
-                    <i class="bi bi-grid-1x2-fill"></i>
-                    <h3>Dashboard</h3>
-                    <p>Selecciona un módulo del menú lateral para comenzar.</p>
+                        {% block contenido%}
+
+                        {% endblock %}
                 </div>
             </div>
 

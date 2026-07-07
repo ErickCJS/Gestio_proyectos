@@ -134,10 +134,6 @@ const mostrar_modal = (tipo, data = {}) => {
                     <label class="form-label modal-label">Descripción</label>
                     <div class="modal-readonly-field modal-readonly-multiline">${data.descripcion ?? ''}</div>
                 </div>
-                <div class="mb-0">
-                    <label class="form-label modal-label">Estado</label>
-                    <div class="modal-readonly-field">${data.estado ?? ''}</div>
-                </div>
             `;
             break;
 
@@ -163,10 +159,6 @@ const mostrar_modal = (tipo, data = {}) => {
                     <label class="form-label modal-label">Grupo</label>
                     <div class="modal-readonly-field">${data.grupo_nombre ?? ''}</div>
                 </div>
-                <div class="mb-0">
-                    <label class="form-label modal-label">Estado</label>
-                    <div class="modal-readonly-field">${data.estado ?? ''}</div>
-                </div>
             `;
             break;
 
@@ -184,39 +176,21 @@ const cerrar_modal = () => {
     modal.hide();
 }
 
-const ver_grupo = (id_grupo, nombre, descripcion, estado) => {
+const ver_grupo = (id_grupo, nombre, descripcion) => {
     mostrar_modal('ver_grupo', {
         id_grupo,
         nombre,
         descripcion,
-        estado
     });
 }
 
-const ver_proceso = (id_proceso, nombre, descripcion, estado, grupo_nombre) => {
+const ver_proceso = (id_proceso, nombre, descripcion, grupo_nombre) => {
     mostrar_modal('ver_proceso', {
         id_proceso,
         nombre,
         descripcion,
-        estado,
         grupo_nombre
     });
-}
-
-const alternarGrupo = async (id_grupo) => {
-    try {
-        const respuesta = await fetch(`/grupo/${id_grupo}/alternar`, {
-            method: 'POST'
-        });
-
-        if (!respuesta.ok) {
-            throw new Error('No se pudo actualizar el estado');
-        }
-
-        window.location.reload();
-    } catch (error) {
-        alert(error.message);
-    }
 }
 
 const eliminarGrupo = async (id_grupo) => {
@@ -231,22 +205,6 @@ const eliminarGrupo = async (id_grupo) => {
 
         if (!respuesta.ok) {
             throw new Error('No se pudo eliminar el grupo');
-        }
-
-        window.location.reload();
-    } catch (error) {
-        alert(error.message);
-    }
-}
-
-const alternarProceso = async (id_proceso) => {
-    try {
-        const respuesta = await fetch(`/procesos/${id_proceso}/alternar`, {
-            method: 'POST'
-        });
-
-        if (!respuesta.ok) {
-            throw new Error('No se pudo actualizar el proceso');
         }
 
         window.location.reload();

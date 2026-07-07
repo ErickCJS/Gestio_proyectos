@@ -19,7 +19,6 @@
                         <th>Proceso</th>
                         <th>Descripcion</th>
                         <th>Grupo</th>
-                        <th>Estado</th>
                         <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
@@ -31,26 +30,13 @@
                             <td>{{ proceso.nombre }}</td>
                             <td>{{ proceso.descripcion }}</td>
                             <td>{{ proceso.grupo_nombre }}</td>
-                            <td>
-                                {% if proceso.estado == 'ACTIVO' %}
-                                    <span class="badge bg-success">Activo</span>
-                                {% else %}
-                                    <span class="badge bg-danger">Inactivo</span>
-                                {% endif %}
-                            </td>
                             <td class="text-center ">
                                 <div class="d-inline-flex gap-1 acciones">
                                     <button
                                         type="button"
                                         class="btn btn-sm btn-outline-primary"
-                                        onclick='ver_proceso({{ proceso.id_proceso }}, {{ proceso.nombre|tojson }}, {{ (proceso.descripcion or "")|tojson }}, {{ proceso.estado|tojson }}, {{ proceso.grupo_nombre|tojson }})'>
+                                        onclick='ver_proceso({{ proceso.id_proceso }}, {{ proceso.nombre|tojson }}, {{ (proceso.descripcion or "")|tojson }}, {{ proceso.grupo_nombre|tojson }})'>
                                         <i class="bi bi-eye-fill text-primary"></i>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm btn-outline-success"
-                                        onclick='alternarProceso({{ proceso.id_proceso }})'>
-                                        <i class="bi bi-toggle-on text-success"></i>
                                     </button>
                                     <button
                                         type="button"
@@ -62,7 +48,12 @@
                             </td>
                         </tr>
                         {% endfor %}
-                    
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-secondary py-4">
+                                No hay procesos creados todavía.
+                            </td>
+                        </tr>
                     {% endif %}
                 </tbody>
             </table>
@@ -76,8 +67,13 @@
     </script>
 
     {% if flash %}
-    <div class="alert alert-success">
-        {{ flash }}
+    <div class="app-flash app-flash-{{ flash.tipo }} mt-3">
+        <i class="bi
+            {% if flash.tipo == 'success' %}bi-check-circle-fill
+            {% elif flash.tipo == 'danger' %}bi-x-circle-fill
+            {% elif flash.tipo == 'warning' %}bi-exclamation-triangle-fill
+            {% else %}bi-info-circle-fill{% endif %}"></i>
+        <span>{{ flash.texto }}</span>
     </div>
     {% endif %}
 {% endblock %}

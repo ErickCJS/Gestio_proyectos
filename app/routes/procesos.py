@@ -4,6 +4,11 @@ import conexion
 
 
 def rutas(app, templates):
+    def set_flash(request, tipo, texto):
+        request.session["flash"] = {
+            "tipo": tipo,
+            "texto": texto,
+        }
 
     def cargar_grupos(db):
         with db.cursor() as cursor:
@@ -24,7 +29,6 @@ def rutas(app, templates):
                     p.id_proceso,
                     p.nombre,
                     p.descripcion,
-                    p.estado,
                     p.fecha_creacion,
                     g.id_grupo,
                     g.nombre AS grupo_nombre
@@ -44,7 +48,6 @@ def rutas(app, templates):
                     nombre VARCHAR(150) NOT NULL,
                     descripcion VARCHAR(255),
                     id_grupo INT NOT NULL,
-                    estado ENUM('ACTIVO','INACTIVO') NOT NULL DEFAULT 'ACTIVO',
                     fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     CONSTRAINT fk_proceso_grupo
                         FOREIGN KEY (id_grupo)
@@ -78,10 +81,10 @@ def rutas(app, templates):
             for indice, (nombre, descripcion, id_grupo) in enumerate(semillas_validas, start=1):
                 cursor.execute(
                     """
-                    INSERT INTO proceso (nombre, descripcion, id_grupo, estado)
-                    VALUES (%s, %s, %s, %s)
+                    INSERT INTO proceso (nombre, descripcion, id_grupo)
+                    VALUES (%s, %s, %s)
                     """,
-                    (nombre, descripcion, id_grupo, "ACTIVO")
+                    (nombre, descripcion, id_grupo)
                 )
 
             db.commit()
@@ -120,12 +123,12 @@ def rutas(app, templates):
         response = RedirectResponse("/procesos", status_code=303)
 
         if not nombre or not id_grupo:
-            request.session["flash"] = "Complete los campos obligatorios."
+            set_flash(request, "warning", "Complete los campos obligatorios.")
             return response
 
         db = conexion.conectar()
         if db == "":
-            request.session["flash"] = "No se pudo conectar con la base de datos."
+            set_flash(request, "danger", "No se pudo conectar con la base de datos.")
             return response
 
         with db.cursor() as cursor:
@@ -133,46 +136,15 @@ def rutas(app, templates):
 
             cursor.execute(
                 """
-                INSERT INTO proceso (nombre, descripcion, id_grupo, estado)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO proceso (nombre, descripcion, id_grupo)
+                VALUES (%s, %s, %s)
                 """,
-                (nombre, descripcion or None, id_grupo, "ACTIVO"),
+                (nombre, descripcion or None, id_grupo),
             )
             db.commit()
 
         db.close()
-        request.session["flash"] = "Proceso creado correctamente."
-        return response
-
-    @app.post("/procesos/{id_proceso}/alternar")
-    async def alternar_proceso(id_proceso: int, request: Request):
-        response = RedirectResponse("/procesos", status_code=303)
-        db = conexion.conectar()
-
-        if db == "":
-            request.session["flash"] = "No se pudo conectar con la base de datos."
-            return response
-
-        with db.cursor() as cursor:
-            cursor.execute(
-                "SELECT estado FROM proceso WHERE id_proceso=%s",
-                (id_proceso,),
-            )
-            proceso = cursor.fetchone()
-            if proceso is None:
-                db.close()
-                request.session["flash"] = "El proceso no existe."
-                return response
-
-            nuevo_estado = "INACTIVO" if proceso["estado"] == "ACTIVO" else "ACTIVO"
-            cursor.execute(
-                "UPDATE proceso SET estado=%s WHERE id_proceso=%s",
-                (nuevo_estado, id_proceso),
-            )
-            db.commit()
-
-        db.close()
-        request.session["flash"] = "Estado del proceso actualizado."
+        set_flash(request, "success", "Proceso creado correctamente.")
         return response
 
     @app.post("/procesos/{id_proceso}/eliminar")
@@ -181,7 +153,7 @@ def rutas(app, templates):
         db = conexion.conectar()
 
         if db == "":
-            request.session["flash"] = "No se pudo conectar con la base de datos."
+            set_flash(request, "danger", "No se pudo conectar con la base de datos.")
             return response
 
         with db.cursor() as cursor:
@@ -192,7 +164,7 @@ def rutas(app, templates):
             db.commit()
 
         db.close()
-        request.session["flash"] = "Proceso eliminado correctamente."
+        set_flash(request, "success", "Proceso eliminado correctamente.")
         return response
 
     @app.get("/grupos")
@@ -208,8 +180,7 @@ def rutas(app, templates):
                     SELECT
                         id_grupo,
                         nombre,
-                        descripcion,
-                        estado
+                        descripcion
                     FROM grupo
                     ORDER BY id_grupo DESC
                     """
@@ -235,12 +206,12 @@ def rutas(app, templates):
         response = RedirectResponse("/grupos", status_code=303)
 
         if not nombre:
-            request.session["flash"] = "El nombre es obligatorio."
+            set_flash(request, "warning", "El nombre es obligatorio.")
             return response
 
         db = conexion.conectar()
         if db == "":
-            request.session["flash"] = "No se pudo conectar con la base de datos."
+            set_flash(request, "danger", "No se pudo conectar con la base de datos.")
             return response
 
         with db.cursor() as cursor:
@@ -250,7 +221,6 @@ def rutas(app, templates):
                     id_grupo INT AUTO_INCREMENT PRIMARY KEY,
                     nombre VARCHAR(100) NOT NULL,
                     descripcion VARCHAR(255) NULL,
-                    estado ENUM('ACTIVO','INACTIVO') NOT NULL DEFAULT 'ACTIVO',
                     fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
                 )
                 """
@@ -258,46 +228,15 @@ def rutas(app, templates):
 
             cursor.execute(
                 """
-                INSERT INTO grupo (nombre, descripcion, estado)
-                VALUES (%s, %s, %s)
+                INSERT INTO grupo (nombre, descripcion)
+                VALUES (%s, %s)
                 """,
-                (nombre, descripcion or None, "ACTIVO"),
+                (nombre, descripcion or None),
             )
             db.commit()
 
         db.close()
-        request.session["flash"] = "Grupo creado correctamente."
-        return response
-
-    @app.post("/grupo/{id_grupo}/alternar")
-    async def alternar_grupo(id_grupo: int, request: Request):
-        response = RedirectResponse("/grupos", status_code=303)
-        db = conexion.conectar()
-
-        if db == "":
-            request.session["flash"] = "No se pudo conectar con la base de datos."
-            return response
-
-        with db.cursor() as cursor:
-            cursor.execute(
-                "SELECT estado FROM grupo WHERE id_grupo=%s",
-                (id_grupo,),
-            )
-            grupo = cursor.fetchone()
-            if grupo is None:
-                db.close()
-                request.session["flash"] = "El grupo no existe."
-                return response
-
-            nuevo_estado = "INACTIVO" if grupo["estado"] == "ACTIVO" else "ACTIVO"
-            cursor.execute(
-                "UPDATE grupo SET estado=%s WHERE id_grupo=%s",
-                (nuevo_estado, id_grupo),
-            )
-            db.commit()
-
-        db.close()
-        request.session["flash"] = "Estado del grupo actualizado."
+        set_flash(request, "success", "Grupo creado correctamente.")
         return response
 
     @app.post("/grupo/{id_grupo}/eliminar")
@@ -306,10 +245,20 @@ def rutas(app, templates):
         db = conexion.conectar()
 
         if db == "":
-            request.session["flash"] = "No se pudo conectar con la base de datos."
+            set_flash(request, "danger", "No se pudo conectar con la base de datos.")
             return response
 
         with db.cursor() as cursor:
+            cursor.execute(
+                "SELECT COUNT(*) AS total FROM proceso WHERE id_grupo=%s",
+                (id_grupo,),
+            )
+            asociados = cursor.fetchone()["total"]
+            if asociados > 0:
+                db.close()
+                set_flash(request, "warning", "No se puede eliminar porque el grupo tiene procesos asociados.")
+                return response
+
             cursor.execute(
                 "DELETE FROM grupo WHERE id_grupo=%s",
                 (id_grupo,),
@@ -317,5 +266,5 @@ def rutas(app, templates):
             db.commit()
 
         db.close()
-        request.session["flash"] = "Grupo eliminado correctamente."
+        set_flash(request, "success", "Grupo eliminado correctamente.")
         return response

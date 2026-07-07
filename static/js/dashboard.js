@@ -89,9 +89,7 @@ const mostrar_modal = (tipo, data = {}) => {
 
         case 'nproceso': {
             titulo = "Crear Proceso";
-            const proyectos = (window.catalogosProcesos && window.catalogosProcesos.proyectos) ? window.catalogosProcesos.proyectos : [];
             const grupos = (window.catalogosProcesos && window.catalogosProcesos.grupos) ? window.catalogosProcesos.grupos : [];
-            const opcionesProyectos = proyectos.map(item => `<option value="${item.id}">${item.nombre}</option>`).join('');
             const opcionesGrupos = grupos.map(item => `<option value="${item.id_grupo}">${item.nombre}</option>`).join('');
             botones = `
                 <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">Cancelar</button>
@@ -103,10 +101,6 @@ const mostrar_modal = (tipo, data = {}) => {
             html = `
                 <form id="frm_crearproceso" method="post" action="/crear_proceso">
                     <div class="mb-3">
-                        <label class="form-label modal-label">Código</label>
-                        <input type="text" class="form-control" name="codigo" placeholder="PRC-001" maxlength="20" required>
-                    </div>
-                    <div class="mb-3">
                         <label class="form-label modal-label">Nombre del proceso</label>
                         <input type="text" class="form-control" name="nombre" placeholder="Ej. Gestión de Matrículas" maxlength="150" required>
                     </div>
@@ -115,13 +109,6 @@ const mostrar_modal = (tipo, data = {}) => {
                         <textarea class="form-control" name="descripcion" rows="3" maxlength="255" placeholder="Descripción opcional"></textarea>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label modal-label">Proyecto</label>
-                        <select class="form-select" name="id_proyecto" required>
-                            <option value="">Seleccione un proyecto</option>
-                            ${opcionesProyectos}
-                        </select>
-                    </div>
-                    <div class="mb-0">
                         <label class="form-label modal-label">Grupo responsable</label>
                         <select class="form-select" name="id_grupo" required>
                             <option value="">Seleccione un grupo</option>
@@ -162,7 +149,7 @@ const mostrar_modal = (tipo, data = {}) => {
             html = `
                 <div class="mb-3">
                     <label class="form-label modal-label">Código</label>
-                    <div class="modal-readonly-field">${data.codigo ?? ''}</div>
+                    <div class="modal-readonly-field">PRC-${String(data.id_proceso).padStart(3, '0')}</div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label modal-label">Nombre</label>
@@ -171,10 +158,6 @@ const mostrar_modal = (tipo, data = {}) => {
                 <div class="mb-3">
                     <label class="form-label modal-label">Descripción</label>
                     <div class="modal-readonly-field modal-readonly-multiline">${data.descripcion ?? ''}</div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label modal-label">Proyecto</label>
-                    <div class="modal-readonly-field">${data.proyecto_nombre ?? ''}</div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label modal-label">Grupo</label>
@@ -210,14 +193,12 @@ const ver_grupo = (id_grupo, nombre, descripcion, estado) => {
     });
 }
 
-const ver_proceso = (id_proceso, codigo, nombre, descripcion, estado, proyecto_nombre, grupo_nombre) => {
+const ver_proceso = (id_proceso, nombre, descripcion, estado, grupo_nombre) => {
     mostrar_modal('ver_proceso', {
         id_proceso,
-        codigo,
         nombre,
         descripcion,
         estado,
-        proyecto_nombre,
         grupo_nombre
     });
 }

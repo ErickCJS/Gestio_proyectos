@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 import conexion as conexion
 from fastapi.responses import RedirectResponse
-from routes  import usuario, procesos
+from routes  import usuario, procesos, riesgos
 
 app = FastAPI()
 
@@ -52,3 +52,4 @@ def dashboard(request: Request):
 
 procesos.rutas(app, templates)
 usuario.rutas(app, templates)
+riesgos.rutas(app, templates)

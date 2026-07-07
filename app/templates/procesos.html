@@ -17,7 +17,7 @@
                     <tr>
                         <th>Código</th>
                         <th>Proceso</th>
-                        <th>Proyecto</th>
+                        <th>Descripcion</th>
                         <th>Grupo</th>
                         <th>Estado</th>
                         <th class="text-center">Acciones</th>
@@ -27,9 +27,9 @@
                     {% if procesos %}
                         {% for proceso in procesos %}
                         <tr>
-                            <td>{{ proceso.codigo }}</td>
+                            <td>PRC-{{ "%03d"|format(proceso.id_proceso) }}</td>
                             <td>{{ proceso.nombre }}</td>
-                            <td>{{ proceso.proyecto_nombre }}</td>
+                            <td>{{ proceso.descripcion }}</td>
                             <td>{{ proceso.grupo_nombre }}</td>
                             <td>
                                 {% if proceso.estado == 'ACTIVO' %}
@@ -43,7 +43,7 @@
                                     <button
                                         type="button"
                                         class="btn btn-sm btn-outline-primary"
-                                        onclick='ver_proceso({{ proceso.id_proceso }}, {{ proceso.codigo|tojson }}, {{ proceso.nombre|tojson }}, {{ (proceso.descripcion or "")|tojson }}, {{ proceso.estado|tojson }}, {{ proceso.proyecto_nombre|tojson }}, {{ proceso.grupo_nombre|tojson }})'>
+                                        onclick='ver_proceso({{ proceso.id_proceso }}, {{ proceso.nombre|tojson }}, {{ (proceso.descripcion or "")|tojson }}, {{ proceso.estado|tojson }}, {{ proceso.grupo_nombre|tojson }})'>
                                         <i class="bi bi-eye-fill text-primary"></i>
                                     </button>
                                     <button
@@ -71,7 +71,6 @@
 
     <script>
         window.catalogosProcesos = {
-            proyectos: {{ proyectos | tojson }},
             grupos: {{ grupos | tojson }}
         };
     </script>

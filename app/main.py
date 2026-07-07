@@ -3,11 +3,17 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 import conexion as conexion
+from fastapi.responses import RedirectResponse
 from routes  import usuario, procesos
 
 app = FastAPI()
 
 templates = Jinja2Templates(directory="templates")
+def usuario_actual(request):
+    return request.session.get("usuario")
+
+templates.env.globals["usuario_actual"] = usuario_actual
+
 app.mount("/static", StaticFiles(directory="../static"), name="static")
 app.add_middleware(
     SessionMiddleware,
@@ -22,10 +28,26 @@ def inicio(request:Request):
     )
 
 @app.get('/dashboard')
-def dashboard(request:Request):
+def dashboard(request: Request):
+
+    usuario = request.session.get("usuario")
+
+    if not request.session.get("usuario"):
+        return RedirectResponse(
+            "/iniciar_sesion",
+            status_code=302
+        )
+
+    mensaje = request.session.pop("mensaje", None)
+
     return templates.TemplateResponse(
-        name = "/maestras/dashboard.html",
-        request=request
+        request=request,
+        name="/maestras/dashboard.html",
+        context={
+            
+            "usuario": usuario,
+            "mensaje": mensaje
+        }
     )
 
 procesos.rutas(app, templates)

@@ -348,7 +348,11 @@ def rutas(app, templates):
                 status_code=302
             )
 
-        request.session["usuario"] = usuario["id"]
+        request.session["usuario"] = {
+            "id": usuario["id"],
+            "nombre": usuario["nombres_completo"],
+            "correo": usuario["correo"]
+        }
 
         request.session["mensaje"] = {
             "tipo": "success",

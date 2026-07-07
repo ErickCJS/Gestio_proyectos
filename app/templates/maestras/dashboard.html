@@ -130,7 +130,11 @@
                 </div>
                 <div class="topbar-right d-flex">
                     <div class="d-flex justify-content-center align-items-center nombres_c">
-                        <span>Julon Saldaña Erick Carlos</span>
+                        {% set usuario = usuario_actual(request) %}
+
+                        {% if usuario %}
+                            <span>{{ usuario.nombre }}</span>
+                        {% endif %}
                     </div>
                 </div>
             </header>

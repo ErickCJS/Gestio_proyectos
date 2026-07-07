@@ -1,47 +1,80 @@
 {% extends '/maestras/dashboard.html' %}
+
 {% block titulo_contenido %}
-<h4>Grupos</h4>
-<span>Visualiza todos los Grupos de tu organización</span>
+    <h4>Grupos</h4>
+    <span>Visualiza todos los grupos de tu organización</span>
 {% endblock %}
+
 {% block accion_contenido %}
-<button class="btn btn-sm btn_primario" onclick="mostrar_modal('ngrupo')"> Nuevo grupo</button>
+    <button class="btn btn-sm btn_primario" onclick="mostrar_modal('ngrupo')">Nuevo grupo</button>
 {% endblock %}
 
 {% block contenido %}
-<div class="tabla-panel">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle" id="tablaGrupos">
-            <thead>
-                <tr>
-                    <th>Código</th>
-                    <th>Nombre del grupo</th>
-                    <th>Descripción</th>
-                    <th>Integrantes</th>
-                    <th>Estado</th>
-                    <th class="text-center">Acciones</th>
-                </tr>
-            </thead>
-
-            <tbody>
-
-                <tr>
-                    <td>GRP-002</td>
-                    <td>Recursos Humanos</td>
-                    <td>Gestión del personal y documentación institucional.</td>
-                    <td>3</td>
-                    <td>
-                        <span class="badge bg-success">Activo</span>
-                    </td>
-                    <td class="acciones text-center">
-                        <button class="btn btn-sm btn-outline-primary"><i class="bi bi-eye-fill text-primary"></i></button>
-                        <button class="btn btn-sm btn-outline-success "><i class="bi bi-toggle-on text-success"></i></button>
-                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash2-fill text-danger"></i></button>
-                    </td>
-                </tr>
-
-
-            </tbody>
-        </table>
+    <div class="tabla-panel">
+        <div class="table-responsive tabla-wrap">
+            <table class="table table-hover table-sm align-middle tabla-compacta w-100" id="tablaGrupos">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Nombre del grupo</th>
+                        <th>Descripción</th>
+                        <th>Estado</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if grupos %}
+                        {% for grupo in grupos %}
+                        <tr>
+                            <td>GRP-{{ "%03d"|format(grupo.id_grupo) }}</td>
+                            <td>{{ grupo.nombre }}</td>
+                            <td>{{ grupo.descripcion or '' }}</td>
+                            <td>
+                                {% if grupo.estado == 'ACTIVO' %}
+                                    <span class="badge bg-success">Activo</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactivo</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center acciones">
+                                <div class="d-inline-flex gap-1">
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary"
+                                        onclick='ver_grupo({{ grupo.id_grupo }}, {{ grupo.nombre|tojson }}, {{ (grupo.descripcion or "")|tojson }}, {{ grupo.estado|tojson }})'>
+                                        <i class="bi bi-eye-fill text-primary"></i>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-success"
+                                        onclick='alternarGrupo({{ grupo.id_grupo }})'>
+                                        <i class="bi bi-toggle-on text-success"></i>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-danger"
+                                        onclick='eliminarGrupo({{ grupo.id_grupo }})'>
+                                        <i class="bi bi-trash2-fill text-danger"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-secondary py-4">
+                                No hay grupos creados todavía.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
     </div>
-</div>
-{% endblock%}
+
+    {% if flash %}
+    <div class="alert alert-success">
+        {{ flash }}
+    </div>
+    {% endif %}
+{% endblock %}

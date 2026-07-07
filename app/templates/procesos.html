@@ -1,43 +1,84 @@
 {% extends '/maestras/dashboard.html' %}
+
 {% block titulo_contenido %}
     <h4>Procesos</h4>
-    <span>Visualiza todos los procesos de tu organización</span>
+    <span>Visualiza y administra los procesos de tu organización</span>
 {% endblock %}
+
 {% block accion_contenido %}
-    <button class="btn btn-sm btn_primario"> Nuevo proceso</button>
+    <button class="btn btn-sm btn_primario" onclick="mostrar_modal('nproceso')">Nuevo proceso</button>
 {% endblock %}
 
 {% block contenido %}
     <div class="tabla-panel">
         <div class="tabla-scroll table-responsive tabla-wrap">
-            <table class=" table table-hover table-sm align-middle tabla-compacta w-100" id="tablaProcesos">
+            <table class="table table-hover table-sm align-middle tabla-compacta w-100" id="tablaProcesos">
                 <thead>
                     <tr>
                         <th>Código</th>
                         <th>Proceso</th>
-                        <th>Responsable</th>
+                        <th>Proyecto</th>
+                        <th>Grupo</th>
                         <th>Estado</th>
-                        <th class="text-center">N° Riesgos</th>
                         <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>PRC-001</td>
-                        <td>Gestión de Matrículas</td>
-                        <td>Oficina Académica</td>
-                        <td>
-                            <span class="badge bg-success">Activo</span>
-                        </td>
-                        <td class="text-center">5</td>
-                        <td class="text-center acciones">
-                            <button class="btn btn-sm btn-outline-primary" ><i class="bi bi-eye-fill text-primary"></i></button>
-                            <button class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil-square text-warning"></i></button>
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash2-fill text-danger"></i></button>
-                        </td>
-                    </tr>
+                    {% if procesos %}
+                        {% for proceso in procesos %}
+                        <tr>
+                            <td>{{ proceso.codigo }}</td>
+                            <td>{{ proceso.nombre }}</td>
+                            <td>{{ proceso.proyecto_nombre }}</td>
+                            <td>{{ proceso.grupo_nombre }}</td>
+                            <td>
+                                {% if proceso.estado == 'ACTIVO' %}
+                                    <span class="badge bg-success">Activo</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactivo</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center ">
+                                <div class="d-inline-flex gap-1 acciones">
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary"
+                                        onclick='ver_proceso({{ proceso.id_proceso }}, {{ proceso.codigo|tojson }}, {{ proceso.nombre|tojson }}, {{ (proceso.descripcion or "")|tojson }}, {{ proceso.estado|tojson }}, {{ proceso.proyecto_nombre|tojson }}, {{ proceso.grupo_nombre|tojson }})'>
+                                        <i class="bi bi-eye-fill text-primary"></i>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-success"
+                                        onclick='alternarProceso({{ proceso.id_proceso }})'>
+                                        <i class="bi bi-toggle-on text-success"></i>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-danger"
+                                        onclick='eliminarProceso({{ proceso.id_proceso }})'>
+                                        <i class="bi bi-trash2-fill text-danger"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    
+                    {% endif %}
                 </tbody>
             </table>
         </div>
     </div>
-{% endblock%}
+
+    <script>
+        window.catalogosProcesos = {
+            proyectos: {{ proyectos | tojson }},
+            grupos: {{ grupos | tojson }}
+        };
+    </script>
+
+    {% if flash %}
+    <div class="alert alert-success">
+        {{ flash }}
+    </div>
+    {% endif %}
+{% endblock %}

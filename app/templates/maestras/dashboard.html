@@ -12,7 +12,9 @@
     <link rel="stylesheet" href="/static/css/colores.css">
     <link rel="stylesheet" href="/static/css/dasboard.css">
     <link rel="stylesheet" href="/static/css/contenido.css">
-
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/2.3.2/js/dataTables.min.js"></script>
 </head>
 
 <body>
@@ -67,7 +69,7 @@
                     <div class="nav-section-title">General</div>
 
                     <div class="nav-item-mg">
-                        <a href="/dashboard" class="nav-link-mg active">
+                        <a href="/dashboard" class="nav-link-mg ">
                             <span class="nav-icon-mg"><i class="bi bi-grid-1x2-fill"></i></span>
                             <span class="nav-label-mg">Dashboard</span>
                         </a>
@@ -81,14 +83,20 @@
                     <div class="nav-section-title">FLUJO DEL PROYECTO</div>
 
                     <!-- Proyectos -->
-                    <div class="nav-item-mg open">
+                    <div class="nav-item-mg open d-flex gap-1 flex-column">
+                        <a href="/grupos" class="nav-link-mg">
+                            <span class="nav-icon-mg"><i class="bi bi-universal-access"></i></span>
+                            <span class="nav-label-mg">Grupos</span>
+                            <span class="nav-badge badge-orange">4</span>
+                        </a>
                         <a href="/procesos" class="nav-link-mg">
                             <span class="nav-icon-mg"><i class="bi bi-diagram-3-fill"></i></span>
                             <span class="nav-label-mg">Procesos</span>
                             <span class="nav-badge badge-orange">4</span>
                         </a>
-                    </div>
 
+                    </div>
+                    
                 </div>
 
 
@@ -130,9 +138,20 @@
             <!-- Contenido (placeholder) -->
             <div class="content-area  ">
                 <div class="content-placeholder">
-                        {% block contenido%}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-start">
+                            {% block titulo_contenido %}
+                           
+                            {% endblock %}
+                        </div>
+                        <div>
+                            {% block accion_contenido %} 
+                            {% endblock %}
+                        </div>
+                    </div>
+                    {% block contenido%}
 
-                        {% endblock %}
+                    {% endblock %}
                 </div>
             </div>
 
@@ -159,6 +178,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/dashboard.js"> </script>
+    <script src="/static/js/librerias.js"> </script>
 </body>
 
 </html>

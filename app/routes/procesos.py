@@ -8,3 +8,11 @@ def rutas(app, templates):
             name = "procesos.html",
             request=request
         )
+    
+    @app.get('/grupos')
+    def grupos(request:Request):
+        return templates.TemplateResponse(
+            name = "grupos.html",
+            request=request
+        )
+    

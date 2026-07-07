@@ -564,6 +564,7 @@
   /* ===== CONTENT PLACEHOLDER ===== */
   .content-area {
       padding: 2rem 1.5rem;
+      height: 45rem;
   }
 
   .content-placeholder {
@@ -572,6 +573,7 @@
       border-radius: var(--radius-lg);
       padding: 4rem 2rem;
       text-align: center;
+      height: 100%;
   }
 
   .content-placeholder i {
@@ -646,3 +648,12 @@
     display: none;
 }
 
+.texto_naranja{
+    color: var(--orange-600) !important;
+}
+
+.texto_naranja:active{
+    background-color: var(--orange-600) !important;
+    color: white !important;
+    border: var(--orange-800) !important;
+}

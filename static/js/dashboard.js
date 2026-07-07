@@ -75,7 +75,7 @@ const mostrar_modal = (tipo) => {
             html = `
                 <form id="frm_creargrupo" method="post" action="/crear_grupo">
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">
+                        <label class="form-label modal-label">
                             Nombre del grupo
                         </label>
 
@@ -96,7 +96,7 @@ const mostrar_modal = (tipo) => {
                     </div>
 
                     <div class="mb-2">
-                        <label class="form-label fw-semibold">
+                        <label class="form-label modal-label">
                             Descripción
                         </label>
 

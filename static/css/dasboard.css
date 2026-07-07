@@ -781,3 +781,105 @@
 .acciones > button:hover > i {
     color: white !important;
 }
+
+/* ===== MODAL ===== */
+.modal-content {
+    border: 1px solid var(--slate-200);
+    border-radius: 1.1rem;
+    box-shadow: var(--shadow-xl);
+    overflow: hidden;
+    font-family: inherit;
+}
+
+.modal-header {
+    padding: 1rem 1.15rem 0.85rem;
+    border-bottom: 1px solid var(--slate-100);
+    background: linear-gradient(180deg, #FFFFFF 0%, #FCFCFD 100%);
+}
+
+.modal-title {
+    font-size: 1.03rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    color: var(--slate-900);
+}
+
+.modal-body {
+    padding: 1.1rem 1.15rem;
+    color: var(--slate-700);
+    font-size: 0.96rem;
+    line-height: 1.7;
+    letter-spacing: 0;
+}
+
+.modal-footer {
+    padding: 0.85rem 1.15rem 1rem;
+    border-top: 1px solid var(--slate-100);
+    background: #FCFCFD;
+}
+
+.modal-body .form-label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--slate-600);
+    margin-bottom: 0.35rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.modal-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--slate-500);
+    letter-spacing: 0.01em;
+    text-transform: none;
+}
+
+.modal-body .form-control,
+.modal-body .input-group-text {
+    font-size: 0.92rem;
+    border-color: var(--slate-200);
+}
+
+.modal-body .form-control {
+    color: var(--slate-800);
+    border-radius: var(--radius-sm);
+}
+
+.modal-body .form-control::placeholder {
+    color: var(--slate-400);
+}
+
+.modal-body .input-group-text {
+    background: var(--slate-50);
+    color: var(--slate-500);
+}
+
+.modal-body .input-group {
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.modal-body .input-group .form-control,
+.modal-body .input-group .input-group-text {
+    border-radius: 0;
+}
+
+.modal-readonly-field {
+    min-height: 2.45rem;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--slate-200);
+    border-radius: var(--radius-sm);
+    background: var(--slate-50);
+    color: var(--slate-800);
+    font-size: 0.94rem;
+    line-height: 1.5;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.modal-readonly-multiline {
+    min-height: 96px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}

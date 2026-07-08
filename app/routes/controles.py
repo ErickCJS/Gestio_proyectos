@@ -80,6 +80,7 @@ def rutas(app, templates):
                 """
                 SELECT
                     c.id_control,
+                    c.id_riesgo,
                     c.nombre,
                     c.descripcion,
                     c.tipo,
@@ -191,4 +192,44 @@ def rutas(app, templates):
 
         db.close()
         set_flash(request, "success", "Control eliminado correctamente.")
+        return response
+
+    @app.post('/control/{id_control}/editar')
+    async def editar_control(id_control: int, request: Request):
+        datos = await request.form()
+        nombre = datos.get('nombre', '').strip()
+        descripcion = datos.get('descripcion', '').strip()
+        tipo = datos.get('tipo', '').strip()
+        impacto = datos.get('impacto', '').strip()
+        probabilidad = datos.get('probabilidad', '').strip()
+        id_riesgo = datos.get('id_riesgo', '').strip()
+
+        response = RedirectResponse('/controles', status_code=303)
+
+        if not nombre or not tipo or not impacto or not probabilidad or not id_riesgo:
+            set_flash(request, 'warning', 'Complete los campos obligatorios.')
+            return response
+
+        if tipo not in tipos_control or impacto not in opciones_efecto or probabilidad not in opciones_efecto:
+            set_flash(request, 'warning', 'Seleccione valores válidos para el control.')
+            return response
+
+        db = conexion.conectar()
+        if db == '':
+            set_flash(request, 'danger', 'No se pudo conectar con la base de datos.')
+            return response
+
+        with db.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE control
+                SET nombre=%s, descripcion=%s, tipo=%s, impacto=%s, probabilidad=%s, id_riesgo=%s
+                WHERE id_control=%s
+                """,
+                (nombre, descripcion or None, tipo, impacto, probabilidad, id_riesgo, id_control),
+            )
+            db.commit()
+
+        db.close()
+        set_flash(request, 'success', 'Control actualizado correctamente.')
         return response

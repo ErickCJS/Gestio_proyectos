@@ -96,6 +96,35 @@ const mostrar_modal = (tipo, data = {}) => {
             `;
             break;
 
+        case 'editar_grupo':
+            titulo = `Editar Grupo #${String(data.id_grupo).padStart(3, '0')}`;
+            botones = `
+                <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">Cancelar</button>
+                <button type="submit" class="btn btn-sm btn_primario" form="frm_editargrupo">
+                    <i class="bi bi-floppy me-2"></i>
+                    Guardar cambios
+                </button>
+            `;
+            html = `
+                <form id="frm_editargrupo" method="post" action="/grupo/${data.id_grupo}/editar">
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Nombre del grupo</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-people"></i></span>
+                            <input type="text" class="form-control" name="nombre" value="${data.nombre ?? ''}" maxlength="100" required>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label modal-label">Descripción</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-card-text"></i></span>
+                            <textarea class="form-control" name="descripcion" rows="4" maxlength="255">${data.descripcion ?? ''}</textarea>
+                        </div>
+                    </div>
+                </form>
+            `;
+            break;
+
         case 'integrantes_grupo': {
             titulo = `Integrantes del grupo #${String(data.id_grupo).padStart(3, '0')}`;
             modalClass = 'modal-dialog modal-dialog-centered modal-xl modal-integrantes';
@@ -300,6 +329,39 @@ const mostrar_modal = (tipo, data = {}) => {
             break;
         }
 
+        case 'editar_proceso': {
+            titulo = `Editar Proceso #${String(data.id_proceso).padStart(3, '0')}`;
+            const gruposEd = (window.catalogosProcesos && window.catalogosProcesos.grupos) ? window.catalogosProcesos.grupos : [];
+            const opcionesGruposEd = gruposEd.map(item => `<option value="${item.id_grupo}" ${String(item.id_grupo) === String(data.id_grupo) ? 'selected' : ''}>${item.nombre}</option>`).join('');
+            botones = `
+                <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">Cancelar</button>
+                <button type="submit" class="btn btn-sm btn_primario" form="frm_editarproceso">
+                    <i class="bi bi-floppy me-2"></i>
+                    Guardar cambios
+                </button>
+            `;
+            html = `
+                <form id="frm_editarproceso" method="post" action="/procesos/${data.id_proceso}/editar">
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Nombre del proceso</label>
+                        <input type="text" class="form-control" name="nombre" value="${data.nombre ?? ''}" maxlength="150" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Descripción</label>
+                        <textarea class="form-control" name="descripcion" rows="3" maxlength="255">${data.descripcion ?? ''}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Grupo responsable</label>
+                        <select class="form-select" name="id_grupo" required>
+                            <option value="">Seleccione un grupo</option>
+                            ${opcionesGruposEd}
+                        </select>
+                    </div>
+                </form>
+            `;
+            break;
+        }
+
         case 'ncontrol': {
             titulo = "Crear Control";
             const catalogos = window.catalogosControles || {};
@@ -355,6 +417,68 @@ const mostrar_modal = (tipo, data = {}) => {
                             <option value="Media" selected>Media</option>
                             <option value="Alta">Alta</option>
                             <option value="Muy Alta">Muy Alta</option>
+                        </select>
+                    </div>
+                </form>
+            `;
+            break;
+        }
+
+        case 'editar_control': {
+            titulo = `Editar Control #${String(data.id_control).padStart(3, '0')}`;
+            const catalogosEd = window.catalogosControles || {};
+            const riesgosEd = Array.isArray(catalogosEd.riesgos) ? catalogosEd.riesgos : [];
+            const opcionesRiesgosEd = riesgosEd.map(item => `<option value="${item.id_riesgo}" ${String(item.id_riesgo) === String(data.id_riesgo) ? 'selected' : ''}>${item.nombre}</option>`).join('');
+            botones = `
+                <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">Cancelar</button>
+                <button type="submit" class="btn btn-sm btn_primario" form="frm_editarcontrol">
+                    <i class="bi bi-floppy me-2"></i>
+                    Guardar cambios
+                </button>
+            `;
+            html = `
+                <form id="frm_editarcontrol" method="post" action="/control/${data.id_control}/editar">
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Riesgo asociado</label>
+                        <select class="form-select" name="id_riesgo" required>
+                            <option value="">Seleccione un riesgo</option>
+                            ${opcionesRiesgosEd}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Nombre del control</label>
+                        <input type="text" class="form-control" name="nombre" value="${data.nombre ?? ''}" maxlength="150" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Descripción</label>
+                        <textarea class="form-control" name="descripcion" rows="3" maxlength="255">${data.descripcion ?? ''}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Tipo de control</label>
+                        <select class="form-select" name="tipo" required>
+                            <option value="Preventivo" ${data.tipo === 'Preventivo' ? 'selected' : ''}>Preventivo</option>
+                            <option value="Detectivo" ${data.tipo === 'Detectivo' ? 'selected' : ''}>Detectivo</option>
+                            <option value="Correctivo" ${data.tipo === 'Correctivo' ? 'selected' : ''}>Correctivo</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Impacto</label>
+                        <select class="form-select" name="impacto" required>
+                            <option value="No afecta" ${data.impacto === 'No afecta' ? 'selected' : ''}>No afecta</option>
+                            <option value="Baja" ${data.impacto === 'Baja' ? 'selected' : ''}>Baja</option>
+                            <option value="Media" ${data.impacto === 'Media' ? 'selected' : ''}>Media</option>
+                            <option value="Alta" ${data.impacto === 'Alta' ? 'selected' : ''}>Alta</option>
+                            <option value="Muy Alta" ${data.impacto === 'Muy Alta' ? 'selected' : ''}>Muy Alta</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Probabilidad</label>
+                        <select class="form-select" name="probabilidad" required>
+                            <option value="No afecta" ${data.probabilidad === 'No afecta' ? 'selected' : ''}>No afecta</option>
+                            <option value="Baja" ${data.probabilidad === 'Baja' ? 'selected' : ''}>Baja</option>
+                            <option value="Media" ${data.probabilidad === 'Media' ? 'selected' : ''}>Media</option>
+                            <option value="Alta" ${data.probabilidad === 'Alta' ? 'selected' : ''}>Alta</option>
+                            <option value="Muy Alta" ${data.probabilidad === 'Muy Alta' ? 'selected' : ''}>Muy Alta</option>
                         </select>
                     </div>
                 </form>
@@ -938,6 +1062,23 @@ const abrir_integrantes_grupo_desde_btn = (btn) => {
     );
 }
 
+const abrir_editar_grupo = (btn) => {
+    mostrar_modal('editar_grupo', {
+        id_grupo: btn.dataset.idGrupo,
+        nombre: btn.dataset.nombre || btn.dataset.nombreGrupo || '',
+        descripcion: btn.dataset.descripcion || ''
+    });
+}
+
+const abrir_editar_proceso = (btn) => {
+    mostrar_modal('editar_proceso', {
+        id_proceso: btn.dataset.idProceso || btn.dataset.id_proceso || btn.dataset.id_proceso,
+        nombre: btn.dataset.nombre || '',
+        descripcion: btn.dataset.descripcion || '',
+        id_grupo: btn.dataset.idGrupo || btn.dataset.id_grupo || ''
+    });
+}
+
 const eliminarGrupo = async (id_grupo) => {
     if (!confirm('¿Seguro que deseas eliminar este grupo?')) {
         return;
@@ -1435,26 +1576,8 @@ function actualizarListaAsociados(idRiesgo, procesos){
 }
 
 function mostrarFlash(tipo, texto) {
-    const iconos = {
-        success: "bi-check-circle-fill",
-        danger: "bi-x-circle-fill",
-        warning: "bi-exclamation-triangle-fill",
-        info: "bi-info-circle-fill"
-    };
-    const flash = document.createElement("div");
-    flash.className = `app-flash app-flash-${tipo}`;
-    flash.innerHTML = `
-        <div class="flash-icono">
-            <i class="bi ${iconos[tipo] || iconos.info}"></i>
-        </div>
-        <div class="flash-texto">${texto}</div>
-    `;
-    document.body.appendChild(flash);
-    setTimeout(() => flash.classList.add("mostrar"), 50);
-    setTimeout(() => {
-        flash.classList.remove("mostrar");
-        setTimeout(() => flash.remove(), 400);
-    }, 3000);
+    // Unificar con mostrar_mensaje_modal (alerta flotante en esquina superior derecha)
+    mostrar_mensaje_modal(texto, tipo);
 }
 
 window.obtenerColorRiesgoMapa = obtenerColorRiesgoMapa;

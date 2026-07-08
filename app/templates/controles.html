@@ -34,6 +34,7 @@
                                 {% for control in controles %}
                                 <tr class="fila-control"
                                     data-id-control="{{ control.id_control }}"
+                                    data-id-riesgo="{{ control.id_riesgo if control.id_riesgo is defined else '' }}"
                                     data-codigo="CTL-{{ '%03d'|format(control.id_control) }}"
                                     data-nombre="{{ control.nombre }}"
                                     data-descripcion="{{ control.descripcion or '' }}"
@@ -55,18 +56,21 @@
                  
                                     <td class="text-center">
                                         <div class="d-inline-flex gap-1 acciones">
+                            
                                             <button type="button"
-                                                class="btn btn-sm btn-outline-primary"
-                                                data-action="ver-control"
+                                                class="btn btn-sm btn-outline-warning"
+                                                data-action="editar-control"
                                                 data-id-control="{{ control.id_control }}"
                                                 data-nombre="{{ control.nombre }}"
                                                 data-descripcion="{{ control.descripcion or '' }}"
                                                 data-tipo="{{ control.tipo }}"
                                                 data-impacto="{{ control.impacto }}"
                                                 data-probabilidad="{{ control.probabilidad }}"
+                                                data-id-riesgo="{{ control.id_riesgo if control.id_riesgo is defined else '' }}"
                                                 data-riesgo-nombre="{{ control.riesgo_nombre }}"
+                                                title="Editar control"
                                                 >
-                                                <i class="bi bi-eye-fill text-primary"></i>
+                                                <i class="bi bi-pencil-fill text-warning"></i>
                                             </button>
                                             <button type="button"
                                                 class="btn btn-sm btn-outline-danger"
@@ -153,6 +157,17 @@
                                 botonAccion.dataset.probabilidad || '',
                                 botonAccion.dataset.riesgoNombre || '',
                             );
+                        } else if (accion === 'editar-control') {
+                            // abrir modal de edición con datos prellenados
+                            mostrar_modal('editar_control', {
+                                id_control: Number(botonAccion.dataset.idControl),
+                                nombre: botonAccion.dataset.nombre || '',
+                                descripcion: botonAccion.dataset.descripcion || '',
+                                tipo: botonAccion.dataset.tipo || '',
+                                impacto: botonAccion.dataset.impacto || '',
+                                probabilidad: botonAccion.dataset.probabilidad || '',
+                                id_riesgo: botonAccion.dataset.idRiesgo || '',
+                            });
                         } else if (accion === 'eliminar-control' && typeof window.eliminarControl === 'function') {
                             window.eliminarControl(Number(botonAccion.dataset.idControl));
                         }
@@ -183,13 +198,10 @@
     </script>
 
     {% if flash %}
-    <div class="app-flash app-flash-{{ flash.tipo }} mt-3">
-        <i class="bi
-            {% if flash.tipo == 'success' %}bi-check-circle-fill
-            {% elif flash.tipo == 'danger' %}bi-x-circle-fill
-            {% elif flash.tipo == 'warning' %}bi-exclamation-triangle-fill
-            {% else %}bi-info-circle-fill{% endif %}"></i>
-        <span>{{ flash.texto }}</span>
-    </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function(){
+                mostrar_mensaje_modal({{ flash.texto | tojson }}, {{ flash.tipo | tojson }});
+            });
+        </script>
     {% endif %}
 {% endblock %}

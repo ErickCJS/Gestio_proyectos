@@ -237,6 +237,35 @@ def rutas(app, templates):
         set_flash(request, "success", "Proceso creado correctamente.")
         return response
 
+    @app.post('/procesos/{id_proceso}/editar')
+    async def editar_proceso(id_proceso: int, request: Request):
+        datos = await request.form()
+        nombre = datos.get('nombre', '').strip()
+        descripcion = datos.get('descripcion', '').strip()
+        id_grupo = datos.get('id_grupo', '').strip()
+
+        response = RedirectResponse('/procesos', status_code=303)
+
+        if not nombre or not id_grupo:
+            set_flash(request, 'warning', 'Complete los campos obligatorios.')
+            return response
+
+        db = conexion.conectar()
+        if db == '':
+            set_flash(request, 'danger', 'No se pudo conectar con la base de datos.')
+            return response
+
+        with db.cursor() as cursor:
+            cursor.execute(
+                'UPDATE proceso SET nombre=%s, descripcion=%s, id_grupo=%s WHERE id_proceso=%s',
+                (nombre, descripcion or None, id_grupo, id_proceso),
+            )
+            db.commit()
+
+        db.close()
+        set_flash(request, 'success', 'Proceso actualizado correctamente.')
+        return response
+
     @app.post("/procesos/{id_proceso}/eliminar")
     async def eliminar_proceso(id_proceso: int, request: Request):
         response = RedirectResponse("/procesos", status_code=303)
@@ -364,6 +393,34 @@ def rutas(app, templates):
 
         db.close()
         set_flash(request, "success", "Grupo creado correctamente.")
+        return response
+
+    @app.post('/grupo/{id_grupo}/editar')
+    async def editar_grupo(id_grupo: int, request: Request):
+        datos = await request.form()
+        nombre = datos.get('nombre', '').strip()
+        descripcion = datos.get('descripcion', '').strip()
+
+        response = RedirectResponse('/grupos', status_code=303)
+
+        if not nombre:
+            set_flash(request, 'warning', 'El nombre es obligatorio.')
+            return response
+
+        db = conexion.conectar()
+        if db == '':
+            set_flash(request, 'danger', 'No se pudo conectar con la base de datos.')
+            return response
+
+        with db.cursor() as cursor:
+            cursor.execute(
+                'UPDATE grupo SET nombre=%s, descripcion=%s WHERE id_grupo=%s',
+                (nombre, descripcion or None, id_grupo),
+            )
+            db.commit()
+
+        db.close()
+        set_flash(request, 'success', 'Grupo actualizado correctamente.')
         return response
 
     @app.post("/grupo/{id_grupo}/integrantes/asignar")

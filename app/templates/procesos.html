@@ -10,53 +10,93 @@
 {% endblock %}
 
 {% block contenido %}
-    <div class="tabla-panel">
-        <div class="tabla-scroll table-responsive tabla-wrap">
-            <table class="table table-hover table-sm align-middle tabla-compacta w-100" id="tablaProcesos">
-                <thead>
-                    <tr>
-                        <th>Código</th>
-                        <th>Proceso</th>
-                        <th>Descripcion</th>
-                        <th>Grupo</th>
-                        <th class="text-center">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if procesos %}
-                        {% for proceso in procesos %}
-                        <tr>
-                            <td>PRC-{{ "%03d"|format(proceso.id_proceso) }}</td>
-                            <td>{{ proceso.nombre }}</td>
-                            <td>{{ proceso.descripcion }}</td>
-                            <td>{{ proceso.grupo_nombre }}</td>
-                            <td class="text-center ">
-                                <div class="d-inline-flex gap-1 acciones">
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm btn-outline-primary"
-                                        onclick='ver_proceso({{ proceso.id_proceso }}, {{ proceso.nombre|tojson }}, {{ (proceso.descripcion or "")|tojson }}, {{ proceso.grupo_nombre|tojson }})'>
-                                        <i class="bi bi-eye-fill text-primary"></i>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm btn-outline-danger"
-                                        onclick='eliminarProceso({{ proceso.id_proceso }})'>
-                                        <i class="bi bi-trash2-fill text-danger"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="5" class="text-center text-secondary py-4">
-                                No hay procesos creados todavía.
-                            </td>
-                        </tr>
-                    {% endif %}
-                </tbody>
-            </table>
+    <div class="row g-4">
+        <div class="col-xl-9">
+            <div class="tabla-panel">
+                <div class="tabla-scroll table-responsive tabla-wrap">
+                    <table class="table table-hover table-sm align-middle tabla-compacta w-100" id="tablaProcesos">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Proceso</th>
+                                <th>Descripcion</th>
+                                <th>Grupo</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if procesos %}
+                                {% for proceso in procesos %}
+                                <tr class="fila-proceso"
+                                    data-id-proceso="{{ proceso.id_proceso }}"
+                                    data-codigo="PRC-{{ '%03d'|format(proceso.id_proceso) }}"
+                                    data-nombre="{{ proceso.nombre }}"
+                                    data-descripcion="{{ proceso.descripcion or '' }}"
+                                    data-grupo-nombre="{{ proceso.grupo_nombre }}"
+                                    data-id-grupo="{{ proceso.id_grupo if proceso.id_grupo is defined else '' }}"
+                                    style="cursor:pointer;">
+                                    <td>PRC-{{ "%03d"|format(proceso.id_proceso) }}</td>
+                                    <td>{{ proceso.nombre }}</td>
+                                    <td>{{ proceso.descripcion }}</td>
+                                    <td>{{ proceso.grupo_nombre }}</td>
+                                    <td class="text-center ">
+                                        <div class="d-inline-flex gap-1 acciones">
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm btn-outline-warning"
+                                                onclick="event.stopPropagation();abrir_editar_proceso(this)"
+                                                data-id-proceso="{{ proceso.id_proceso }}"
+                                                data-nombre="{{ proceso.nombre }}"
+                                                data-descripcion="{{ proceso.descripcion or '' }}"
+                                                data-id-grupo="{{ proceso.id_grupo if proceso.id_grupo is defined else '' }}"
+                                                title="Editar proceso">
+                                                <i class="bi bi-pencil-fill text-warning"></i>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm btn-outline-danger"
+                                                onclick='event.stopPropagation();eliminarProceso({{ proceso.id_proceso }})'>
+                                                <i class="bi bi-trash2-fill text-danger"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-secondary py-4">
+                                        No hay procesos creados todavía.
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3">
+            <div class="tabla-panel">
+                <div class="px-4 pt-3 pb-2">
+                    <h5 class="fw-semibold mb-0">Detalle del proceso</h5>
+                </div>
+                <div class="p-4">
+                    <h5 id="detalleProcesoNombre" class="fw-bold mb-3">Seleccione un proceso</h5>
+                    <div class="mb-3">
+                        <small class="text-secondary">Código</small>
+                        <div id="detalleProcesoCodigo" class="fw-semibold">-</div>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-secondary">Descripción</small>
+                        <div id="detalleProcesoDescripcion">Seleccione un proceso de la tabla.</div>
+                    </div>
+                    <hr>
+                    <div class="mb-3">
+                        <small class="text-secondary">Grupo asociado</small>
+                        <div id="detalleProcesoGrupo" class="fw-semibold">-</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -64,16 +104,67 @@
         window.catalogosProcesos = {
             grupos: {{ grupos | tojson }}
         };
+
+        function seleccionarFilaProceso(fila) {
+            document.querySelectorAll('.fila-proceso').forEach((elemento) => {
+                elemento.classList.remove('table-active');
+            });
+            if (fila) {
+                fila.classList.add('table-active');
+            }
+        }
+
+        function mostrarDetalleProceso(nombre, codigo, descripcion, grupo_nombre) {
+            const detalleNombre = document.getElementById('detalleProcesoNombre');
+            const detalleCodigo = document.getElementById('detalleProcesoCodigo');
+            const detalleDescripcion = document.getElementById('detalleProcesoDescripcion');
+            const detalleGrupo = document.getElementById('detalleProcesoGrupo');
+
+            if (detalleNombre) detalleNombre.textContent = nombre || 'Proceso';
+            if (detalleCodigo) detalleCodigo.textContent = codigo || '-';
+            if (detalleDescripcion) detalleDescripcion.textContent = descripcion || '-';
+            if (detalleGrupo) detalleGrupo.textContent = grupo_nombre || '-';
+        }
+
+        function obtenerDatosProceso(fila) {
+            return {
+                nombre: fila.dataset.nombre || '',
+                codigo: fila.dataset.codigo || '',
+                descripcion: fila.dataset.descripcion || '',
+                grupo_nombre: fila.dataset.grupoNombre || ''
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabla = document.getElementById('tablaProcesos');
+            if (tabla) {
+                tabla.addEventListener('click', (event) => {
+                    const fila = event.target.closest('tr.fila-proceso');
+                    if (!fila) {
+                        return;
+                    }
+                    if (event.target.closest('button')) {
+                        return;
+                    }
+
+                    seleccionarFilaProceso(fila);
+                    const datos = obtenerDatosProceso(fila);
+                    mostrarDetalleProceso(datos.nombre, datos.codigo, datos.descripcion, datos.grupo_nombre);
+                });
+            }
+
+            const primeraFila = document.querySelector('#tablaProcesos tbody tr.fila-proceso');
+            if (primeraFila) {
+                primeraFila.click();
+            }
+        });
     </script>
 
     {% if flash %}
-    <div class="app-flash app-flash-{{ flash.tipo }} mt-3">
-        <i class="bi
-            {% if flash.tipo == 'success' %}bi-check-circle-fill
-            {% elif flash.tipo == 'danger' %}bi-x-circle-fill
-            {% elif flash.tipo == 'warning' %}bi-exclamation-triangle-fill
-            {% else %}bi-info-circle-fill{% endif %}"></i>
-        <span>{{ flash.texto }}</span>
-    </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function(){
+                mostrar_mensaje_modal({{ flash.texto | tojson }}, {{ flash.tipo | tojson }});
+            });
+        </script>
     {% endif %}
 {% endblock %}

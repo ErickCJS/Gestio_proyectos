@@ -10,83 +10,208 @@
 {% endblock %}
 
 {% block contenido %}
-    <div class="tabla-panel">
-        <div class="table-responsive tabla-wrap">
-            <table class="table table-hover table-sm align-middle tabla-compacta w-100" id="tablaGrupos">
-                <thead>
-                    <tr>
-                        <th>Código</th>
-                        <th>Nombre del grupo</th>
-                        <th class="text-center">Integrantes</th>
-                        <th>Descripción</th>
-                        <th class="text-center">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if grupos %}
-                        {% for grupo in grupos %}
-                        <tr>
-                            <td>GRP-{{ "%03d"|format(grupo.id_grupo) }}</td>
-                            <td>{{ grupo.nombre }}</td>
-                            <td class="text-center">
-                                <span class="badge badge-soft-role" id="count-integrantes-{{ grupo.id_grupo }}">
-                                    {{ grupo.total_integrantes or 0 }}
-                                </span>
-                            </td>
-                            <td>{{ grupo.descripcion or '' }}</td>
-                            <td class="text-center ">
-                                <div class="d-inline-flex gap-1 acciones">
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm btn-outline-secondary"
-                                        title="Integrantes del grupo"
-                                        data-id-grupo="{{ grupo.id_grupo }}"
-                                        data-nombre-grupo="{{ grupo.nombre }}"
-                                        onclick="abrir_integrantes_grupo_desde_btn(this)">
-                                        <i class="bi bi-person-plus-fill text-secondary"></i>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm btn-outline-primary"
-                                        data-id-grupo="{{ grupo.id_grupo }}"
-                                        data-nombre-grupo="{{ grupo.nombre }}"
-                                        data-descripcion-grupo="{{ grupo.descripcion or '' }}"
-                                        onclick="ver_grupo_desde_btn(this)">
-                                        <i class="bi bi-eye-fill text-primary"></i>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm btn-outline-danger"
-                                        onclick='eliminarGrupo({{ grupo.id_grupo }})'>
-                                        <i class="bi bi-trash2-fill text-danger"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="5" class="text-center text-secondary py-4">
-                                No hay grupos creados todavía.
-                            </td>
-                        </tr>
-                    {% endif %}
-                </tbody>
-            </table>
+    <div class="row g-4">
+        <div class="col-xl-9">
+            <div class="tabla-panel">
+                <div class="table-responsive tabla-wrap">
+                    <table class="table table-hover table-sm align-middle tabla-compacta w-100" id="tablaGrupos">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Nombre del grupo</th>
+                                <th class="text-center">Integrantes</th>
+                                <th>Descripción</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if grupos %}
+                                {% for grupo in grupos %}
+                                <tr class="fila-grupo"
+                                    data-id-grupo="{{ grupo.id_grupo }}"
+                                    data-codigo="GRP-{{ '%03d'|format(grupo.id_grupo) }}"
+                                    data-nombre="{{ grupo.nombre }}"
+                                    data-descripcion="{{ grupo.descripcion or '' }}"
+                                    data-integrantes="{{ grupo.total_integrantes or 0 }}"
+                                    style="cursor:pointer;">
+                                    <td>GRP-{{ "%03d"|format(grupo.id_grupo) }}</td>
+                                    <td>{{ grupo.nombre }}</td>
+                                    <td class="text-center">
+                                        <span class="badge badge-soft-role" id="count-integrantes-{{ grupo.id_grupo }}">
+                                            {{ grupo.total_integrantes or 0 }}
+                                        </span>
+                                    </td>
+                                    <td>{{ grupo.descripcion or '' }}</td>
+                                    <td class="text-center ">
+                                        <div class="d-inline-flex gap-1 acciones">
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm btn-outline-secondary"
+                                                title="Integrantes del grupo"
+                                                data-id-grupo="{{ grupo.id_grupo }}"
+                                                data-nombre-grupo="{{ grupo.nombre }}"
+                                                onclick="event.stopPropagation();abrir_integrantes_grupo_desde_btn(this)">
+                                                <i class="bi bi-person-plus-fill text-secondary"></i>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm btn-outline-warning"
+                                                title="Editar grupo"
+                                                data-id-grupo="{{ grupo.id_grupo }}"
+                                                data-nombre="{{ grupo.nombre }}"
+                                                data-descripcion="{{ grupo.descripcion or '' }}"
+                                                onclick="event.stopPropagation();abrir_editar_grupo(this)">
+                                                <i class="bi bi-pencil-fill text-warning"></i>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm btn-outline-danger"
+                                                onclick='event.stopPropagation();eliminarGrupo({{ grupo.id_grupo }})'>
+                                                <i class="bi bi-trash2-fill text-danger"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-secondary py-4">
+                                        No hay grupos creados todavía.
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3">
+            <div class="tabla-panel">
+                <div class="px-4 pt-3 pb-2">
+                    <h5 class="fw-semibold mb-0">Detalle del grupo</h5>
+                </div>
+                <div class="p-4">
+                    <h5 id="detalleGrupoNombre" class="fw-bold mb-3">Seleccione un grupo</h5>
+                    <div class="mb-3">
+                        <small class="text-secondary">Código</small>
+                        <div id="detalleGrupoCodigo" class="fw-semibold">-</div>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-secondary">Descripción</small>
+                        <div id="detalleGrupoDescripcion">Seleccione un grupo de la tabla.</div>
+                    </div>
+                    <hr>
+                    <div class="mb-3">
+                        <small class="text-secondary">Integrantes</small>
+                        <div id="detalleGrupoIntegrantes" class="fw-semibold">-</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    {% if flash %}
-    <div class="app-flash app-flash-{{ flash.tipo }} mt-3">
-        <i class="bi
-            {% if flash.tipo == 'success' %}bi-check-circle-fill
-            {% elif flash.tipo == 'danger' %}bi-x-circle-fill
-            {% elif flash.tipo == 'warning' %}bi-exclamation-triangle-fill
-            {% else %}bi-info-circle-fill{% endif %}"></i>
-        <span>{{ flash.texto }}</span>
-    </div>
-    {% endif %}
+{% if flash %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function(){
+            mostrar_mensaje_modal({{ flash.texto | tojson }}, {{ flash.tipo | tojson }});
+        });
+    </script>
+{% endif %}
 {% endblock %}
 {% block scripts %}
     <script src="/static/js/grupos.js"></script>
+    <script>
+        function seleccionarFilaGrupo(fila) {
+            document.querySelectorAll('.fila-grupo').forEach((elemento) => {
+                elemento.classList.remove('table-active');
+            });
+            if (fila) {
+                fila.classList.add('table-active');
+            }
+        }
+
+        function mostrarDetalleGrupo(nombre, codigo, descripcion, integrantes) {
+            const detalleNombre = document.getElementById('detalleGrupoNombre');
+            const detalleCodigo = document.getElementById('detalleGrupoCodigo');
+            const detalleDescripcion = document.getElementById('detalleGrupoDescripcion');
+            const detalleIntegrantes = document.getElementById('detalleGrupoIntegrantes');
+
+            if (detalleNombre) detalleNombre.textContent = nombre || 'Grupo';
+            if (detalleCodigo) detalleCodigo.textContent = codigo || '-';
+            if (detalleDescripcion) detalleDescripcion.textContent = descripcion || '-';
+            if (detalleIntegrantes) detalleIntegrantes.textContent = integrantes != null ? integrantes : '-';
+        }
+
+        window.seleccionarFilaGrupo = seleccionarFilaGrupo;
+        window.mostrarDetalleGrupo = mostrarDetalleGrupo;
+
+        async function cargarIntegrantesLateral(id_grupo) {
+            const contenedor = document.getElementById('detalleGrupoIntegrantes');
+            if (!contenedor) return;
+            contenedor.textContent = 'Cargando...';
+
+            try {
+                const respuesta = await fetch(`/grupo/${id_grupo}/integrantes`);
+                if (!respuesta.ok) throw new Error('No se pudieron cargar los integrantes');
+                const integrantes = await respuesta.json();
+
+                if (!integrantes.length) {
+                    contenedor.textContent = '-';
+                    return;
+                }
+
+                contenedor.innerHTML = `
+                    <ul class="list-group mt-1">
+                        ${integrantes.map(i => `
+                            <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                <div class="min-w-0">
+                                    <div class="fw-semibold text-truncate">${i.nombres_completo ?? ''}</div>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge badge-soft-role">${i.rol_nombre ?? ''}</span>
+                                </div>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+
+            } catch (error) {
+                console.error(error);
+                contenedor.textContent = 'Error al cargar integrantes';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabla = document.getElementById('tablaGrupos');
+            if (tabla) {
+                tabla.addEventListener('click', (event) => {
+                    const boton = event.target.closest('button');
+                    if (boton) return; // dejar que los botones gestionen sus acciones
+
+                    const fila = event.target.closest('tr.fila-grupo');
+                    if (!fila) return;
+
+                    seleccionarFilaGrupo(fila);
+                    const datos = {
+                        id_grupo: fila.dataset.idGrupo || fila.dataset.idGrupo,
+                        nombre: fila.dataset.nombre || '',
+                        codigo: fila.dataset.codigo || '',
+                        descripcion: fila.dataset.descripcion || '',
+                        integrantes: fila.dataset.integrantes || ''
+                    };
+
+                    mostrarDetalleGrupo(datos.nombre, datos.codigo, datos.descripcion, datos.integrantes);
+                    if (datos.id_grupo) {
+                        cargarIntegrantesLateral(datos.id_grupo);
+                    }
+                });
+            }
+
+            const primeraFila = document.querySelector('#tablaGrupos tbody tr.fila-grupo');
+            if (primeraFila) {
+                primeraFila.click();
+            }
+        });
+    </script>
 {% endblock%}

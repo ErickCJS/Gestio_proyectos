@@ -1,0 +1,89 @@
+{% extends '/maestras/dashboard.html' %}
+
+{% block titulo_contenido %}
+    <h4>Controles</h4>
+    <span>Administra los controles definidos para mitigar y supervisar riesgos.</span>
+{% endblock %}
+
+{% block accion_contenido %}
+    <button class="btn btn-sm btn_primario" onclick="mostrar_modal('ncontrol')">
+        <i class="bi bi-shield-check me-2"></i>
+        Nuevo control
+    </button>
+{% endblock %}
+
+{% block contenido %}
+    <div class="tabla-panel">
+        <div class="tabla-scroll table-responsive tabla-wrap mt-2">
+            <table class="table table-hover table-sm align-middle tabla-compacta w-100" id="tablaControles">
+                <thead>
+                    <tr>
+                        <th style="width:90px;">Código</th>
+                        <th>Control</th>
+                        <th style="width:130px;">Tipo</th>
+                        <th>Riesgo</th>
+                        <th>Proceso</th>
+                        <th style="width:95px;" class="text-center">Estado</th>
+                        <th style="width:120px;" class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if controles %}
+                        {% for control in controles %}
+                        <tr>
+                            <td>CTL-{{ "%03d"|format(control.id_control) }}</td>
+                            <td>
+                                <div class="fw-semibold">{{ control.nombre }}</div>
+                                <small class="text-secondary">{{ control.descripcion or '' }}</small>
+                            </td>
+                            <td>{{ control.tipo }}</td>
+                            <td>{{ control.riesgo_nombre }}</td>
+                            <td>{{ control.proceso_nombre or 'Sin proceso' }}</td>
+                            <td class="text-center">
+                                {% if control.estado == 'Activo' %}
+                                <span class="badge nivel-riesgo-badge nivel-bajo">Activo</span>
+                                {% else %}
+                                <span class="badge nivel-riesgo-badge nivel-extremo">Inactivo</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="d-inline-flex gap-1 acciones">
+                                    <button type="button"
+                                        class="btn btn-sm btn-outline-primary"
+                                        onclick='ver_control({{ control.id_control }}, {{ control.nombre|tojson }}, {{ (control.descripcion or "")|tojson }}, {{ control.tipo|tojson }}, {{ control.riesgo_nombre|tojson }}, {{ (control.proceso_nombre or "Sin proceso")|tojson }})'>
+                                        <i class="bi bi-eye-fill text-primary"></i>
+                                    </button>
+                                    <button type="button"
+                                        class="btn btn-sm btn-outline-danger"
+                                        onclick='eliminarControl({{ control.id_control }})'>
+                                        <i class="bi bi-trash2-fill text-danger"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        window.catalogosControles = {
+            riesgos: {{ riesgos | tojson }},
+            procesos: {{ procesos | tojson }}
+        };
+    </script>
+
+    {% if flash %}
+    <div class="app-flash app-flash-{{ flash.tipo }} mt-3">
+        <i class="bi
+            {% if flash.tipo == 'success' %}bi-check-circle-fill
+            {% elif flash.tipo == 'danger' %}bi-x-circle-fill
+            {% elif flash.tipo == 'warning' %}bi-exclamation-triangle-fill
+            {% else %}bi-info-circle-fill{% endif %}"></i>
+        <span>{{ flash.texto }}</span>
+    </div>
+    {% endif %}
+{% endblock %}
+

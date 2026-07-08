@@ -1,20 +1,26 @@
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
-import conexion as conexion
 from fastapi.responses import RedirectResponse
-from routes  import usuario, procesos, riesgos
+
+try:
+    from .routes import usuario, procesos, riesgos, controles
+except ImportError:
+    from routes import usuario, procesos, riesgos, controles
 
 app = FastAPI()
 
-templates = Jinja2Templates(directory="templates")
+BASE_DIR = Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 def usuario_actual(request):
     return request.session.get("usuario")
 
 templates.env.globals["usuario_actual"] = usuario_actual
 
-app.mount("/static", StaticFiles(directory="../static"), name="static")
+app.mount("/static", StaticFiles(directory=str(BASE_DIR.parent / "static")), name="static")
 app.add_middleware(
     SessionMiddleware,
     secret_key="mi_clave_super_secreta"
@@ -53,3 +59,4 @@ def dashboard(request: Request):
 procesos.rutas(app, templates)
 usuario.rutas(app, templates)
 riesgos.rutas(app, templates)
+controles.rutas(app, templates)

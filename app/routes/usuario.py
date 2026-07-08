@@ -3,7 +3,10 @@ from fastapi.responses import JSONResponse
 from fastapi.responses import RedirectResponse
 import bcrypt
 import re
-import conexion
+try:
+    from .. import conexion
+except ImportError:
+    import conexion
 
 
 def rutas(app, templates):

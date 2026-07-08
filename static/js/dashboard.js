@@ -300,6 +300,57 @@ const mostrar_modal = (tipo, data = {}) => {
             break;
         }
 
+        case 'ncontrol': {
+            titulo = "Crear Control";
+            const catalogos = window.catalogosControles || {};
+            const riesgos = Array.isArray(catalogos.riesgos) ? catalogos.riesgos : [];
+            const procesos = Array.isArray(catalogos.procesos) ? catalogos.procesos : [];
+            const opcionesRiesgos = riesgos.map(item => `<option value="${item.id_riesgo}">RSK-${String(item.id_riesgo).padStart(3, '0')} - ${item.nombre}</option>`).join('');
+            const opcionesProcesos = procesos.map(item => `<option value="${item.id_proceso}">PRC-${String(item.id_proceso).padStart(3, '0')} - ${item.nombre}</option>`).join('');
+            botones = `
+                <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">Cancelar</button>
+                <button type="submit" class="btn btn-sm btn_primario" form="frm_crearcontrol">
+                    <i class="bi bi-floppy me-2"></i>
+                    Guardar control
+                </button>
+            `;
+            html = `
+                <form id="frm_crearcontrol" method="post" action="/crear_control">
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Nombre del control</label>
+                        <input type="text" class="form-control" name="nombre" placeholder="Ej. Revisión de accesos" maxlength="150" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Descripción</label>
+                        <textarea class="form-control" name="descripcion" rows="3" maxlength="255" placeholder="Describe cómo funciona el control."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Tipo de control</label>
+                        <select class="form-select" name="tipo" required>
+                            <option value="Preventivo">Preventivo</option>
+                            <option value="Detectivo">Detectivo</option>
+                            <option value="Correctivo">Correctivo</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Riesgo asociado</label>
+                        <select class="form-select" name="id_riesgo" required>
+                            <option value="">Seleccione un riesgo</option>
+                            ${opcionesRiesgos}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label modal-label">Proceso relacionado</label>
+                        <select class="form-select" name="id_proceso">
+                            <option value="">Sin proceso relacionado</option>
+                            ${opcionesProcesos}
+                        </select>
+                    </div>
+                </form>
+            `;
+            break;
+        }
+
         case 'ver_grupo':
             titulo = `Grupo #${String(data.id_grupo).padStart(3, '0')}`;
             botones = `
@@ -358,6 +409,39 @@ const mostrar_modal = (tipo, data = {}) => {
                 <div class="mb-3">
                     <label class="form-label modal-label">Grupo</label>
                     <div class="modal-readonly-field">${data.grupo_nombre ?? ''}</div>
+                </div>
+            `;
+            break;
+
+        case 'ver_control':
+            titulo = `Control #${String(data.id_control).padStart(3, '0')}`;
+            botones = `
+                <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">Cerrar</button>
+            `;
+            html = `
+                <div class="mb-3">
+                    <label class="form-label modal-label">Código</label>
+                    <div class="modal-readonly-field">CTL-${String(data.id_control).padStart(3, '0')}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label modal-label">Nombre</label>
+                    <div class="modal-readonly-field">${data.nombre ?? ''}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label modal-label">Descripción</label>
+                    <div class="modal-readonly-field modal-readonly-multiline">${data.descripcion ?? ''}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label modal-label">Tipo</label>
+                    <div class="modal-readonly-field">${data.tipo ?? ''}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label modal-label">Riesgo asociado</label>
+                    <div class="modal-readonly-field">${data.riesgo_nombre ?? ''}</div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label modal-label">Proceso relacionado</label>
+                    <div class="modal-readonly-field">${data.proceso_nombre ?? 'Sin proceso'}</div>
                 </div>
             `;
             break;
@@ -756,6 +840,17 @@ const ver_proceso = (id_proceso, nombre, descripcion, grupo_nombre) => {
     });
 }
 
+const ver_control = (id_control, nombre, descripcion, tipo, riesgo_nombre, proceso_nombre) => {
+    mostrar_modal('ver_control', {
+        id_control,
+        nombre,
+        descripcion,
+        tipo,
+        riesgo_nombre,
+        proceso_nombre
+    });
+}
+
 const abrir_integrantes_grupo = async (id_grupo, nombre) => {
     mostrar_modal('integrantes_grupo', {
         id_grupo,
@@ -995,6 +1090,26 @@ function calcularNivelModal(
         badge.style.background = color;
         badge.style.borderColor = color;
         badge.style.color = (nivel === "BAJO" || nivel === "MEDIO") ? "#111827" : "#ffffff";
+    }
+}
+
+const eliminarControl = async (id_control) => {
+    if (!confirm('¿Seguro que deseas eliminar este control?')) {
+        return;
+    }
+
+    try {
+        const respuesta = await fetch(`/control/${id_control}/eliminar`, {
+            method: 'POST'
+        });
+
+        if (!respuesta.ok) {
+            throw new Error('No se pudo eliminar el control');
+        }
+
+        window.location.reload();
+    } catch (error) {
+        alert(error.message);
     }
 }
 
@@ -1274,3 +1389,5 @@ function mostrarFlash(tipo, texto) {
 window.obtenerColorRiesgoMapa = obtenerColorRiesgoMapa;
 window.calcularNivelRiesgo = calcularNivelRiesgo;
 window.obtenerColorNivelRiesgo = obtenerColorNivelRiesgo;
+window.ver_control = ver_control;
+window.eliminarControl = eliminarControl;

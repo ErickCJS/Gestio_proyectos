@@ -2,7 +2,10 @@ from fastapi import Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from fastapi.responses import RedirectResponse
-import conexion
+try:
+    from .. import conexion
+except ImportError:
+    import conexion
 
 
 def rutas(app, templates):

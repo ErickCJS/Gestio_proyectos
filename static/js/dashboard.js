@@ -849,6 +849,63 @@ function crearMapaModal() {
     return html;
 }
 
+function obtenerColorRiesgoMapa(impacto, frecuencia) {
+    const colores = [
+        ["#fbbf24","#f97316","#f97316","#ef4444","#ef4444"],
+        ["#fbbf24","#fbbf24","#f97316","#f97316","#ef4444"],
+        ["#22c55e","#fbbf24","#fbbf24","#f97316","#f97316"],
+        ["#22c55e","#22c55e","#fbbf24","#fbbf24","#f97316"],
+        ["#22c55e","#22c55e","#22c55e","#fbbf24","#f97316"]
+    ];
+    const impactos = {
+        INSIGNIFICANTE:0, MENOR:1, MODERADO:2, MAYOR:3, CATASTROFICO:4
+    };
+    const frecuencias = {
+        RARA:4, IMPROBABLE:3, POSIBLE:2, PROBABLE:1, CASI_SEGURO:0
+    };
+    const x = impactos[impacto];
+    const y = frecuencias[frecuencia];
+    if (x === undefined || y === undefined) {
+        return null;
+    }
+    return colores[y][x];
+}
+
+function calcularNivelRiesgo(impacto, frecuencia) {
+    const valorImpacto = {
+        INSIGNIFICANTE:1, MENOR:2, MODERADO:3, MAYOR:4, CATASTROFICO:5
+    };
+
+    const valorFrecuencia = {
+        RARA:1, IMPROBABLE:2, POSIBLE:3, PROBABLE:4, CASI_SEGURO:5
+    };
+
+    const total =
+        valorImpacto[impacto] *
+        valorFrecuencia[frecuencia];
+
+    if(total <= 4){
+        return "BAJO";
+    }
+    if(total <= 9){
+        return "MEDIO";
+    }
+    if(total <= 16){
+        return "ALTO";
+    }
+    return "EXTREMO";
+}
+
+function obtenerColorNivelRiesgo(nivel) {
+    const colores = {
+        BAJO: "#22c55e",
+        MEDIO: "#fbbf24",
+        ALTO: "#f97316",
+        EXTREMO: "#ef4444"
+    };
+    return colores[nivel] || null;
+}
+
 function actualizarMapaRiesgo() {
     const impacto = document.getElementById("impacto").value;
     const frecuencia = document.getElementById("frecuencia").value;
@@ -866,35 +923,29 @@ function moverMarcadorModal(
     impacto,
     frecuencia
 ) {
-
-    const impactos = {
-        INSIGNIFICANTE:0, MENOR:1, MODERADO:2, MAYOR:3, CATASTROFICO:4
-    };
-
-    const frecuencias = {
-        RARA:4, IMPROBABLE:3, POSIBLE:2, PROBABLE:1, CASI_SEGURO:0
-    };
-
-    const colores = [
-        ["#fbbf24","#f97316","#f97316","#ef4444","#ef4444"],
-        ["#fbbf24","#fbbf24","#f97316","#f97316","#ef4444"],
-        ["#22c55e","#fbbf24","#fbbf24","#f97316","#f97316"],
-        ["#22c55e","#22c55e","#fbbf24","#fbbf24","#f97316"],
-        ["#22c55e","#22c55e","#22c55e","#fbbf24","#f97316"]
-    ];
-
-    const x = impactos[impacto];
-    const y = frecuencias[frecuencia];
+    const colorMapa = obtenerColorRiesgoMapa(impacto, frecuencia);
+    if (!colorMapa) {
+        return;
+    }
 
     const marcador = document.getElementById("marcadorModal");
 
     if(!marcador)
         return;
 
+    const impactos = {
+        INSIGNIFICANTE:0, MENOR:1, MODERADO:2, MAYOR:3, CATASTROFICO:4
+    };
+    const frecuencias = {
+        RARA:4, IMPROBABLE:3, POSIBLE:2, PROBABLE:1, CASI_SEGURO:0
+    };
+    const x = impactos[impacto];
+    const y = frecuencias[frecuencia];
+    const nivel = calcularNivelRiesgo(impacto, frecuencia);
+    const colorNivel = obtenerColorNivelRiesgo(nivel) || colorMapa;
     marcador.style.left = (x * 42 + 2) + "px";
     marcador.style.top = (y* 42 + 2) + "px";
-
-     marcador.style.background = colores[y][x];
+    marcador.style.background = colorNivel;
 
 }
 
@@ -934,8 +985,16 @@ function calcularNivelModal(
         badge.innerHTML = "ALTO";
     }
     else{
-        badge.classList.add("bg-dark");
+        badge.classList.add("bg-danger");
         badge.innerHTML = "EXTREMO";
+    }
+
+    const nivel = calcularNivelRiesgo(impacto, frecuencia);
+    const color = obtenerColorNivelRiesgo(nivel);
+    if (color) {
+        badge.style.background = color;
+        badge.style.borderColor = color;
+        badge.style.color = (nivel === "BAJO" || nivel === "MEDIO") ? "#111827" : "#ffffff";
     }
 }
 
@@ -1211,3 +1270,7 @@ function mostrarFlash(tipo, texto) {
         setTimeout(() => flash.remove(), 400);
     }, 3000);
 }
+
+window.obtenerColorRiesgoMapa = obtenerColorRiesgoMapa;
+window.calcularNivelRiesgo = calcularNivelRiesgo;
+window.obtenerColorNivelRiesgo = obtenerColorNivelRiesgo;

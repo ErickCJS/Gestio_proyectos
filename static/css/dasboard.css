@@ -4,7 +4,9 @@
     margin: 0;
     padding: 0;
 }
-
+.bg-orange{
+    background-color: var(--orange-600);
+}
   body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       color: var(--slate-800);
@@ -614,6 +616,43 @@
       margin-top: 1.5rem;
   }
 
+  .riesgo-toolbar {
+      background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-radius: 1rem 1rem 0 0;
+      box-shadow: inset 0 -1px 0 rgba(15, 23, 42, 0.04);
+  }
+
+  .riesgo-toolbar h5 {
+      font-size: 0.92rem;
+      color: var(--slate-900);
+  }
+
+  .riesgo-toolbar .form-check-input {
+      width: 0.95rem;
+      height: 0.95rem;
+      margin-top: 0;
+      border-color: var(--slate-300);
+      cursor: pointer;
+  }
+
+  .riesgo-toolbar .form-select {
+      min-width: 132px;
+      border-radius: 0.8rem;
+      border-color: var(--slate-200);
+      background-color: #FFFFFF;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  }
+
+  .riesgo-toolbar .btn_primario {
+      border-radius: 0.8rem;
+      box-shadow: 0 10px 18px rgba(255, 102, 0, 0.12);
+  }
+
+  .riesgo-toolbar small {
+      font-size: 0.74rem;
+  }
+
   .tabla-panel {
       display: flex;
       flex-direction: column;
@@ -682,11 +721,53 @@
       color: var(--slate-500);
   }
 
+  .dataTables_wrapper .dataTables_filter {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.15rem 0 0.5rem;
+  }
+
+  .dataTables_wrapper .dataTables_filter label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin-bottom: 0;
+      font-weight: 600;
+      color: var(--slate-600);
+  }
+
+  .dataTables_wrapper .dataTables_filter input {
+      min-width: 220px;
+      padding: 0.52rem 0.8rem;
+      border: 1px solid var(--slate-200);
+      border-radius: 0.85rem;
+      background: #FFFFFF;
+      box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .dataTables_wrapper .dataTables_filter input:focus {
+      outline: none;
+      border-color: rgba(255, 102, 0, 0.45);
+      box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.12);
+  }
+
+  .dataTables_wrapper .dataTables_length label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-weight: 600;
+      color: var(--slate-600);
+  }
+
   .dt-container input,
   .dt-container select,
   .dataTables_wrapper input,
   .dataTables_wrapper select {
-      min-height: 1.9rem;
+      min-height: 1rem;
+      min-width: 1rem;
       padding: 0.25rem 0.5rem;
       font-size: 0.76rem;
       border-radius: var(--radius-sm);
@@ -1053,6 +1134,270 @@
     font-size: 0.64rem;
     font-weight: 700;
     letter-spacing: 0.02em;
+}
+
+.nivel-riesgo-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 74px;
+    padding: 0.38rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    text-transform: capitalize;
+}
+
+.nivel-riesgo-badge.nivel-bajo {
+    background: #22c55e;
+    border-color: #22c55e;
+    color: #FFFFFF;
+}
+
+.nivel-riesgo-badge.nivel-medio {
+    background: #fbbf24;
+    border-color: #fbbf24;
+    color: #111827;
+}
+
+.nivel-riesgo-badge.nivel-alto {
+    background: #f97316;
+    border-color: #f97316;
+    color: #FFFFFF;
+}
+
+.nivel-riesgo-badge.nivel-extremo {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: #FFFFFF;
+}
+
+.detalle-resumen-riesgo {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+}
+
+.detalle-resumen-item {
+    padding: 0.8rem 0.85rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+}
+
+.detalle-resumen-item span {
+    display: block;
+    font-size: 0.62rem;
+    color: var(--slate-500);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+}
+
+.detalle-resumen-item strong {
+    display: block;
+    font-size: 0.84rem;
+    font-weight: 800;
+    color: var(--slate-900);
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+}
+
+.riesgo-heatmap-wrap {
+    width: 286px;
+    max-width: 100%;
+    padding: 0.7rem 0.7rem 0.75rem;
+    border-radius: 1.15rem;
+
+}
+
+.riesgo-heatmap-head {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    align-items: end;
+    margin-bottom: 0.4rem;
+}
+
+.riesgo-heatmap-title {
+    text-align: center;
+    font-size: 0.74rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--slate-700);
+}
+
+.riesgo-heatmap-shell {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 0.18rem;
+    align-items: start;
+}
+
+.riesgo-heatmap-table-wrap {
+    position: relative;
+}
+
+.riesgo-heatmap-axis-vertical {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--slate-700);
+    min-height: 214px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.riesgo-heatmap-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 2px;
+    table-layout: fixed;
+}
+
+.riesgo-heatmap-table thead th {
+    height: 18px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    color: #475569;
+    text-align: center;
+    padding: 0;
+    background: transparent;
+}
+
+.riesgo-heatmap-corner {
+    width: 38px;
+}
+
+.riesgo-heatmap-rowhead {
+    width: 38px;
+    height: 40px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #475569;
+    text-align: right;
+    padding-right: 0.1rem;
+    background: transparent;
+    white-space: nowrap;
+}
+
+.riesgo-heatmap-table td {
+    width: 40px;
+    height: 40px;
+    border-radius: 0.35rem;
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.riesgo-heatmap-body {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 0.14rem;
+    align-items: start;
+}
+
+.riesgo-heatmap-axis {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 212px;
+}
+
+.riesgo-heatmap-axis-vertical {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--slate-700);
+}
+
+.riesgo-heatmap-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+}
+
+.riesgo-heatmap-xlabels {
+    display: grid;
+    grid-template-columns: repeat(6, 40px);
+    padding-left: 0;
+    justify-content: start;
+    margin-left: 0;
+}
+
+.riesgo-heatmap-xlabels div,
+.riesgo-heatmap-ylabels div {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #475569;
+    text-align: center;
+}
+
+.riesgo-heatmap-grid-wrap {
+    display: grid;
+    grid-template-columns: 38px 1fr;
+    gap: 0.08rem;
+    align-items: start;
+}
+
+.riesgo-heatmap-ylabels {
+    display: grid;
+    grid-template-rows: repeat(5, 40px);
+    gap: 2px;
+    align-items: stretch;
+}
+
+.riesgo-heatmap-ylabels div {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 0.05rem;
+}
+
+.riesgo-heatmap-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(5, 40px);
+    grid-template-rows: repeat(5, 40px);
+    gap: 2px;
+    padding: 0.15rem;
+    border-radius: 0.95rem;
+    background: rgba(255, 255, 255, 0.65);
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.riesgo-heatmap-cell {
+    border-radius: 0.35rem;
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.riesgo-heatmap-marker {
+    position: absolute;
+    width: 34px;
+    height: 34px;
+    top: 3px;
+    left: 3px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.35rem;
+    color: #FFFFFF;
+    font-size: 0.68rem;
+    font-weight: 800;
+    pointer-events: none;
+    transition: top 0.3s ease, left 0.3s ease, background 0.2s ease;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
 }
 
 .modal-content {

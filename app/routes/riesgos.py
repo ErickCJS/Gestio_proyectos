@@ -25,7 +25,7 @@ def rutas(app, templates):
         "CATASTROFICO":5
     }
 
-    valores_frecuencia = {
+    valores_probabilidad = {
         "RARA":1,
         "IMPROBABLE":2,
         "POSIBLE":3,
@@ -34,11 +34,11 @@ def rutas(app, templates):
     }
 
 
-    def calcular_nivel(impacto, frecuencia):
+    def calcular_nivel(impacto, probabilidad):
 
         total = (
             valores_impacto[impacto] *
-            valores_frecuencia[frecuencia]
+            valores_probabilidad[probabilidad]
         )
         if total <=4:
             return "BAJO"
@@ -103,13 +103,14 @@ def rutas(app, templates):
             riesgos=cargar_riesgos(db)
             procesos=cargar_procesos(db)
             for riesgo in riesgos:
+                riesgo["probabilidad"] = riesgo["frecuencia"]
                 riesgo["procesos"]=cargar_procesos_riesgo(
                     db,
                     riesgo["id_riesgo"]
                 )
             mapa=[0]*25
             for riesgo in riesgos:
-                x=valores_frecuencia[riesgo["frecuencia"]]-1
+                x=valores_probabilidad[riesgo["probabilidad"]]-1
                 y=valores_impacto[riesgo["impacto"]]-1
                 indice=(4-y)*5+x
                 mapa[indice]+=1
@@ -138,7 +139,7 @@ def rutas(app, templates):
         nombre=datos.get("nombre","").strip()
         descripcion=datos.get("descripcion","").strip()
         impacto=datos.get("impacto")
-        frecuencia=datos.get("frecuencia")
+        probabilidad=datos.get("probabilidad", datos.get("frecuencia"))
         procesos=datos.getlist("procesos")
         response=RedirectResponse(
             "/riesgo",
@@ -166,7 +167,7 @@ def rutas(app, templates):
 
         nivel=calcular_nivel(
             impacto,
-            frecuencia
+            probabilidad
         )
 
         with db.cursor() as cursor:
@@ -175,7 +176,7 @@ def rutas(app, templates):
                 nombre,
                 descripcion,
                 impacto,
-                frecuencia,
+                probabilidad,
                 nivel
             )
             VALUES(
@@ -189,7 +190,7 @@ def rutas(app, templates):
                 nombre,
                 descripcion or None,
                 impacto,
-                frecuencia,
+                probabilidad,
                 nivel
             ))
 

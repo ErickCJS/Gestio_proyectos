@@ -219,9 +219,9 @@ const mostrar_modal = (tipo, data = {}) => {
                             </div>
                             <div class="mb-3">
                                 <label class="form-label modal-label">
-                                    Frecuencia
+                                    Probabilidad
                                 </label>
-                                <select id="frecuencia" name="frecuencia" class="form-select" onchange="actualizarMapaRiesgo()">
+                                <select id="probabilidad" name="probabilidad" class="form-select" onchange="actualizarMapaRiesgo()">
                                     <option value="RARA">
                                         Rara
                                     </option>
@@ -304,9 +304,7 @@ const mostrar_modal = (tipo, data = {}) => {
             titulo = "Crear Control";
             const catalogos = window.catalogosControles || {};
             const riesgos = Array.isArray(catalogos.riesgos) ? catalogos.riesgos : [];
-            const procesos = Array.isArray(catalogos.procesos) ? catalogos.procesos : [];
-            const opcionesRiesgos = riesgos.map(item => `<option value="${item.id_riesgo}">RSK-${String(item.id_riesgo).padStart(3, '0')} - ${item.nombre}</option>`).join('');
-            const opcionesProcesos = procesos.map(item => `<option value="${item.id_proceso}">PRC-${String(item.id_proceso).padStart(3, '0')} - ${item.nombre}</option>`).join('');
+            const opcionesRiesgos = riesgos.map(item => `<option value="${item.id_riesgo}">${item.nombre}</option>`).join('');
             botones = `
                 <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">Cancelar</button>
                 <button type="submit" class="btn btn-sm btn_primario" form="frm_crearcontrol">
@@ -316,6 +314,13 @@ const mostrar_modal = (tipo, data = {}) => {
             `;
             html = `
                 <form id="frm_crearcontrol" method="post" action="/crear_control">
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Riesgo asociado</label>
+                        <select class="form-select" name="id_riesgo" required>
+                            <option value="">Seleccione un riesgo</option>
+                            ${opcionesRiesgos}
+                        </select>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label modal-label">Nombre del control</label>
                         <input type="text" class="form-control" name="nombre" placeholder="Ej. Revisión de accesos" maxlength="150" required>
@@ -333,17 +338,23 @@ const mostrar_modal = (tipo, data = {}) => {
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label modal-label">Riesgo asociado</label>
-                        <select class="form-select" name="id_riesgo" required>
-                            <option value="">Seleccione un riesgo</option>
-                            ${opcionesRiesgos}
+                        <label class="form-label modal-label">Impacto</label>
+                        <select class="form-select" name="impacto" required>
+                            <option value="No afecta">No afecta</option>
+                            <option value="Baja">Baja</option>
+                            <option value="Media" selected>Media</option>
+                            <option value="Alta">Alta</option>
+                            <option value="Muy Alta">Muy Alta</option>
                         </select>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label modal-label">Proceso relacionado</label>
-                        <select class="form-select" name="id_proceso">
-                            <option value="">Sin proceso relacionado</option>
-                            ${opcionesProcesos}
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Probabilidad</label>
+                        <select class="form-select" name="probabilidad" required>
+                            <option value="No afecta">No afecta</option>
+                            <option value="Baja">Baja</option>
+                            <option value="Media" selected>Media</option>
+                            <option value="Alta">Alta</option>
+                            <option value="Muy Alta">Muy Alta</option>
                         </select>
                     </div>
                 </form>
@@ -424,6 +435,10 @@ const mostrar_modal = (tipo, data = {}) => {
                     <div class="modal-readonly-field">CTL-${String(data.id_control).padStart(3, '0')}</div>
                 </div>
                 <div class="mb-3">
+                    <label class="form-label modal-label">Riesgo asociado</label>
+                    <div class="modal-readonly-field">${data.riesgo_nombre ?? ''}</div>
+                </div>
+                <div class="mb-3">
                     <label class="form-label modal-label">Nombre</label>
                     <div class="modal-readonly-field">${data.nombre ?? ''}</div>
                 </div>
@@ -436,12 +451,12 @@ const mostrar_modal = (tipo, data = {}) => {
                     <div class="modal-readonly-field">${data.tipo ?? ''}</div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label modal-label">Riesgo asociado</label>
-                    <div class="modal-readonly-field">${data.riesgo_nombre ?? ''}</div>
+                    <label class="form-label modal-label">Impacto</label>
+                    <div class="modal-readonly-field">${data.impacto ?? ''}</div>
                 </div>
-                <div class="mb-2">
-                    <label class="form-label modal-label">Proceso relacionado</label>
-                    <div class="modal-readonly-field">${data.proceso_nombre ?? 'Sin proceso'}</div>
+                <div class="mb-3">
+                    <label class="form-label modal-label">Probabilidad</label>
+                    <div class="modal-readonly-field">${data.probabilidad ?? ''}</div>
                 </div>
             `;
             break;
@@ -840,16 +855,72 @@ const ver_proceso = (id_proceso, nombre, descripcion, grupo_nombre) => {
     });
 }
 
-const ver_control = (id_control, nombre, descripcion, tipo, riesgo_nombre, proceso_nombre) => {
+const ver_control = (id_control, nombre, descripcion, tipo, impacto, probabilidad, riesgo_nombre, estado) => {
     mostrar_modal('ver_control', {
         id_control,
         nombre,
         descripcion,
         tipo,
+        impacto,
+        probabilidad,
         riesgo_nombre,
-        proceso_nombre
+        estado
     });
 }
+
+const mapaControlEfectos = {
+    'No afecta': 0,
+    'Baja': 1,
+    'Media': 2,
+    'Alta': 3,
+    'Muy Alta': 4
+};
+
+const seleccionarFilaControl = (fila) => {
+    document.querySelectorAll('.fila-control').forEach((elemento) => {
+        elemento.classList.remove('table-active');
+    });
+    if (fila) {
+        fila.classList.add('table-active');
+    }
+}
+
+const mostrarDetalleControl = (
+    nombre,
+    codigo,
+    descripcion,
+    tipo,
+    impacto,
+    probabilidad,
+    riesgo_nombre,
+    estado
+) => {
+    const mapeoEstado = {
+        Activo: 'Activo',
+        Inactivo: 'Inactivo'
+    };
+
+    const detalleNombre = document.getElementById('detalleControlNombre');
+    const detalleCodigo = document.getElementById('detalleControlCodigo');
+    const detalleDescripcion = document.getElementById('detalleControlDescripcion');
+    const detalleTipo = document.getElementById('detalleControlTipo');
+    const detalleImpacto = document.getElementById('detalleControlImpacto');
+    const detalleProbabilidad = document.getElementById('detalleControlProbabilidad');
+    const detalleRiesgo = document.getElementById('detalleControlRiesgo');
+    const detalleEstado = document.getElementById('detalleControlEstado');
+
+    if (detalleNombre) detalleNombre.textContent = nombre || 'Control';
+    if (detalleCodigo) detalleCodigo.textContent = codigo || '-';
+    if (detalleDescripcion) detalleDescripcion.textContent = descripcion || '-';
+    if (detalleTipo) detalleTipo.textContent = tipo || '-';
+    if (detalleImpacto) detalleImpacto.textContent = impacto || '-';
+    if (detalleProbabilidad) detalleProbabilidad.textContent = probabilidad || '-';
+    if (detalleRiesgo) detalleRiesgo.textContent = riesgo_nombre || '-';
+    if (detalleEstado) detalleEstado.textContent = mapeoEstado[estado] || estado || '-';
+}
+
+window.seleccionarFilaControl = seleccionarFilaControl;
+window.mostrarDetalleControl = mostrarDetalleControl;
 
 const abrir_integrantes_grupo = async (id_grupo, nombre) => {
     mostrar_modal('integrantes_grupo', {
@@ -944,7 +1015,7 @@ function crearMapaModal() {
     return html;
 }
 
-function obtenerColorRiesgoMapa(impacto, frecuencia) {
+function obtenerColorRiesgoMapa(impacto, probabilidad) {
     const colores = [
         ["#fbbf24","#f97316","#f97316","#ef4444","#ef4444"],
         ["#fbbf24","#fbbf24","#f97316","#f97316","#ef4444"],
@@ -955,29 +1026,29 @@ function obtenerColorRiesgoMapa(impacto, frecuencia) {
     const impactos = {
         INSIGNIFICANTE:0, MENOR:1, MODERADO:2, MAYOR:3, CATASTROFICO:4
     };
-    const frecuencias = {
+    const probabilidades = {
         RARA:4, IMPROBABLE:3, POSIBLE:2, PROBABLE:1, CASI_SEGURO:0
     };
     const x = impactos[impacto];
-    const y = frecuencias[frecuencia];
+    const y = probabilidades[probabilidad];
     if (x === undefined || y === undefined) {
         return null;
     }
     return colores[y][x];
 }
 
-function calcularNivelRiesgo(impacto, frecuencia) {
+function calcularNivelRiesgo(impacto, probabilidad) {
     const valorImpacto = {
         INSIGNIFICANTE:1, MENOR:2, MODERADO:3, MAYOR:4, CATASTROFICO:5
     };
 
-    const valorFrecuencia = {
+    const valorProbabilidad = {
         RARA:1, IMPROBABLE:2, POSIBLE:3, PROBABLE:4, CASI_SEGURO:5
     };
 
     const total =
         valorImpacto[impacto] *
-        valorFrecuencia[frecuencia];
+        valorProbabilidad[probabilidad];
 
     if(total <= 4){
         return "BAJO";
@@ -1003,22 +1074,22 @@ function obtenerColorNivelRiesgo(nivel) {
 
 function actualizarMapaRiesgo() {
     const impacto = document.getElementById("impacto").value;
-    const frecuencia = document.getElementById("frecuencia").value;
+    const probabilidad = document.getElementById("probabilidad").value;
     moverMarcadorModal(
         impacto,
-        frecuencia
+        probabilidad
     );
     calcularNivelModal(
         impacto,
-        frecuencia
+        probabilidad
     );
 }
 
 function moverMarcadorModal(
     impacto,
-    frecuencia
+    probabilidad
 ) {
-    const colorMapa = obtenerColorRiesgoMapa(impacto, frecuencia);
+    const colorMapa = obtenerColorRiesgoMapa(impacto, probabilidad);
     if (!colorMapa) {
         return;
     }
@@ -1031,12 +1102,12 @@ function moverMarcadorModal(
     const impactos = {
         INSIGNIFICANTE:0, MENOR:1, MODERADO:2, MAYOR:3, CATASTROFICO:4
     };
-    const frecuencias = {
+    const probabilidades = {
         RARA:4, IMPROBABLE:3, POSIBLE:2, PROBABLE:1, CASI_SEGURO:0
     };
     const x = impactos[impacto];
-    const y = frecuencias[frecuencia];
-    const nivel = calcularNivelRiesgo(impacto, frecuencia);
+    const y = probabilidades[probabilidad];
+    const nivel = calcularNivelRiesgo(impacto, probabilidad);
     const colorNivel = obtenerColorNivelRiesgo(nivel) || colorMapa;
     marcador.style.left = (x * 42 + 2) + "px";
     marcador.style.top = (y* 42 + 2) + "px";
@@ -1046,19 +1117,19 @@ function moverMarcadorModal(
 
 function calcularNivelModal(
     impacto,
-    frecuencia
+    probabilidad
 ) {
 
     const valorImpacto = {
         INSIGNIFICANTE:1, MENOR:2, MODERADO:3, MAYOR:4, CATASTROFICO:5
     };
 
-    const valorFrecuencia = {
+    const valorProbabilidad = {
         RARA:1, IMPROBABLE:2, POSIBLE:3, PROBABLE:4, CASI_SEGURO:5
     };
     const total =
         valorImpacto[impacto] *
-        valorFrecuencia[frecuencia];
+        valorProbabilidad[probabilidad];
     const badge =
         document.getElementById("nivelCalculado");
     if(!badge)
@@ -1084,7 +1155,7 @@ function calcularNivelModal(
         badge.innerHTML = "EXTREMO";
     }
 
-    const nivel = calcularNivelRiesgo(impacto, frecuencia);
+    const nivel = calcularNivelRiesgo(impacto, probabilidad);
     const color = obtenerColorNivelRiesgo(nivel);
     if (color) {
         badge.style.background = color;

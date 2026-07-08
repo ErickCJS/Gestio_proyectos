@@ -13,6 +13,9 @@ def rutas(app, templates):
             "texto": texto,
         }
 
+    tipos_control = {"Preventivo", "Detectivo", "Correctivo"}
+    opciones_efecto = {"No afecta", "Baja", "Media", "Alta", "Muy Alta"}
+
     def asegurar_tabla_control(db):
         with db.cursor() as cursor:
             cursor.execute(
@@ -22,19 +25,40 @@ def rutas(app, templates):
                     nombre VARCHAR(150) NOT NULL,
                     descripcion VARCHAR(255),
                     tipo ENUM('Preventivo', 'Detectivo', 'Correctivo') NOT NULL,
+                    impacto ENUM('No afecta', 'Baja', 'Media', 'Alta', 'Muy Alta') NOT NULL DEFAULT 'No afecta',
+                    probabilidad ENUM('No afecta', 'Baja', 'Media', 'Alta', 'Muy Alta') NOT NULL DEFAULT 'No afecta',
                     id_riesgo INT NOT NULL,
-                    id_proceso INT NULL,
                     estado ENUM('Activo', 'Inactivo') NOT NULL DEFAULT 'Activo',
                     fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     CONSTRAINT fk_control_riesgo
                         FOREIGN KEY (id_riesgo)
-                        REFERENCES riesgo(id_riesgo),
-                    CONSTRAINT fk_control_proceso
-                        FOREIGN KEY (id_proceso)
-                        REFERENCES proceso(id_proceso)
+                        REFERENCES riesgo(id_riesgo)
                 )
                 """
             )
+            columnas = {
+                "impacto": """
+                    ALTER TABLE control
+                    ADD COLUMN impacto ENUM('No afecta', 'Baja', 'Media', 'Alta', 'Muy Alta') NOT NULL DEFAULT 'No afecta'
+                """,
+                "probabilidad": """
+                    ALTER TABLE control
+                    ADD COLUMN probabilidad ENUM('No afecta', 'Baja', 'Media', 'Alta', 'Muy Alta') NOT NULL DEFAULT 'No afecta'
+                """
+            }
+            for columna, ddl in columnas.items():
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) AS total
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                        AND TABLE_NAME = 'control'
+                        AND COLUMN_NAME = %s
+                    """,
+                    (columna,),
+                )
+                if cursor.fetchone()["total"] == 0:
+                    cursor.execute(ddl)
             db.commit()
 
     def cargar_riesgos(db):
@@ -50,19 +74,6 @@ def rutas(app, templates):
             )
             return cursor.fetchall()
 
-    def cargar_procesos(db):
-        with db.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT
-                    id_proceso,
-                    nombre
-                FROM proceso
-                ORDER BY nombre ASC
-                """
-            )
-            return cursor.fetchall()
-
     def cargar_controles(db):
         with db.cursor() as cursor:
             cursor.execute(
@@ -72,15 +83,14 @@ def rutas(app, templates):
                     c.nombre,
                     c.descripcion,
                     c.tipo,
+                    c.impacto,
+                    c.probabilidad,
                     c.estado,
                     c.fecha_creacion,
-                    r.nombre AS riesgo_nombre,
-                    p.nombre AS proceso_nombre
+                    r.nombre AS riesgo_nombre
                 FROM control c
                 INNER JOIN riesgo r
                     ON r.id_riesgo = c.id_riesgo
-                LEFT JOIN proceso p
-                    ON p.id_proceso = c.id_proceso
                 ORDER BY c.id_control DESC
                 """
             )
@@ -92,12 +102,10 @@ def rutas(app, templates):
         db = conexion.conectar()
         controles = []
         riesgos = []
-        procesos = []
 
         if db != "":
             asegurar_tabla_control(db)
             riesgos = cargar_riesgos(db)
-            procesos = cargar_procesos(db)
             controles = cargar_controles(db)
             db.close()
 
@@ -108,7 +116,6 @@ def rutas(app, templates):
                 "flash": flash,
                 "controles": controles,
                 "riesgos": riesgos,
-                "procesos": procesos,
             },
         )
 
@@ -118,13 +125,18 @@ def rutas(app, templates):
         nombre = datos.get("nombre", "").strip()
         descripcion = datos.get("descripcion", "").strip()
         tipo = datos.get("tipo", "").strip()
+        impacto = datos.get("impacto", "").strip()
+        probabilidad = datos.get("probabilidad", "").strip()
         id_riesgo = datos.get("id_riesgo", "").strip()
-        id_proceso = datos.get("id_proceso", "").strip()
 
         response = RedirectResponse("/controles", status_code=303)
 
-        if not nombre or not tipo or not id_riesgo:
+        if not nombre or not tipo or not impacto or not probabilidad or not id_riesgo:
             set_flash(request, "warning", "Complete los campos obligatorios.")
+            return response
+
+        if tipo not in tipos_control or impacto not in opciones_efecto or probabilidad not in opciones_efecto:
+            set_flash(request, "warning", "Seleccione valores válidos para el control.")
             return response
 
         db = conexion.conectar()
@@ -140,17 +152,19 @@ def rutas(app, templates):
                     nombre,
                     descripcion,
                     tipo,
-                    id_riesgo,
-                    id_proceso
+                    impacto,
+                    probabilidad,
+                    id_riesgo
                 )
-                VALUES (%s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 """,
                 (
                     nombre,
                     descripcion or None,
                     tipo,
+                    impacto,
+                    probabilidad,
                     id_riesgo,
-                    id_proceso or None,
                 ),
             )
             db.commit()

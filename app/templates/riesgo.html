@@ -56,7 +56,7 @@
                                 Riesgo
                             </th>
                             <th style="width:140px">
-                                Frecuencia
+                                Probabilidad
                             </th>
                             <th style="width:130px">
                                 Impacto
@@ -76,7 +76,7 @@
                         {% for riesgo in riesgos %}
 
                         <tr class="fila-riesgo" onclick="seleccionarFila(this);mostrarDetalle( '{{ riesgo.nombre }}', 'RSK-{{ '%03d'|format(riesgo.id_riesgo) }}', '{{ riesgo.descripcion }}', '{{ riesgo.impacto }}',
-                            '{{ riesgo.frecuencia }}', '{{ riesgo.nivel }}' )" style="cursor:pointer;">
+                            '{{ riesgo.probabilidad }}', '{{ riesgo.nivel }}' )" style="cursor:pointer;">
                             <td class="text-center">
                                 <input type="checkbox" class="form-check-input riesgo-export-check m-0" onclick="event.stopPropagation(); actualizarContadorRiesgosSeleccionados()">
                             </td>
@@ -92,7 +92,7 @@
                                 </small>
                             </td>
                             <td>
-                                {{ riesgo.frecuencia }}
+                                {{ riesgo.probabilidad }}
                             </td>
                             <td>
                                 {{ riesgo.impacto }}
@@ -192,8 +192,8 @@
                         <strong id="detalleImpacto">-</strong>
                     </div>
                     <div class="detalle-resumen-item">
-                        <span>Frecuencia</span>
-                        <strong id="detalleFrecuencia">-</strong>
+                        <span>Probabilidad</span>
+                        <strong id="detalleProbabilidad">-</strong>
                     </div>
                 </div>
 
@@ -210,7 +210,7 @@
                     <div class="riesgo-heatmap-body">
                         <div class="riesgo-heatmap-axis">
                             <div class="riesgo-heatmap-axis-label riesgo-heatmap-axis-vertical">
-                                Frecuencia
+                                Probabilidad
                             </div>
                         </div>
 
@@ -307,14 +307,14 @@
     };
 
     function mostrarDetalle(
-        nombre,codigo,descripcion,impacto,frecuencia,nivel
+        nombre,codigo,descripcion,impacto,probabilidad,nivel
     ) {
 
         document.getElementById("detalleNombre").innerHTML = nombre;
         document.getElementById("detalleCodigo").innerHTML = codigo;
         document.getElementById("detalleDescripcion").innerHTML = descripcion;
         document.getElementById("detalleImpacto").innerHTML = impacto;
-        document.getElementById("detalleFrecuencia").innerHTML = frecuencia;
+        document.getElementById("detalleProbabilidad").innerHTML = probabilidad;
         const badge = document.getElementById("detalleNivel");
         badge.className = "badge nivel-riesgo-badge";
         badge.style.minWidth = "96px";
@@ -333,7 +333,7 @@
 
         moverMarcador(
             impacto,
-            frecuencia
+            probabilidad
         );
 
     }
@@ -341,14 +341,14 @@
 
     function moverMarcador(
         impacto,
-        frecuencia
+        probabilidad
     ) {
 
         const impactos = {
             "INSIGNIFICANTE": 0,"MENOR": 1,"MODERADO": 2,"MAYOR": 3,"CATASTROFICO": 4
         };
 
-        const frecuencias = {
+        const probabilidades = {
             "RARA": 4,"IMPROBABLE": 3,"POSIBLE": 2,"PROBABLE": 1,"CASI_SEGURO": 0
         };
 
@@ -361,7 +361,7 @@
         ];
 
         const x = impactos[impacto];
-        const y = frecuencias[frecuencia];
+        const y = probabilidades[probabilidad];
 
         const punto = document.getElementById("marcadorMapa");
         if (!punto) {
@@ -466,7 +466,7 @@
             return mapa[valor] || 0;
         }
 
-        function valorFrecuenciaDesdeTexto(texto) {
+        function valorProbabilidadDesdeTexto(texto) {
             const valor = normalizarTexto(texto);
             const mapa = {
                 RARA: 1,
@@ -485,7 +485,7 @@
                     codigo: formatearTextoExportacion(celdas[1]?.innerText),
                     riesgo: formatearTextoExportacion(celdas[2]?.innerText),
                     impacto: formatearTextoExportacion(celdas[3]?.innerText),
-                    frecuencia: formatearTextoExportacion(celdas[4]?.innerText),
+                    probabilidad: formatearTextoExportacion(celdas[4]?.innerText),
                     nivel: formatearTextoExportacion(celdas[5]?.innerText)
                 };
             });
@@ -495,12 +495,12 @@
             const matriz = Array.from({ length: 5 }, () => Array(5).fill(0));
             datos.forEach((item) => {
                 const impacto = valorImpactoDesdeTexto(item.impacto);
-                const frecuencia = valorFrecuenciaDesdeTexto(item.frecuencia);
-                if (!impacto || !frecuencia) {
+                const probabilidad = valorProbabilidadDesdeTexto(item.probabilidad);
+                if (!impacto || !probabilidad) {
                     return;
                 }
                 const x = impacto - 1;
-                const y = 5 - frecuencia;
+                const y = 5 - probabilidad;
                 matriz[y][x] += 1;
             });
             return matriz;
@@ -532,7 +532,7 @@
                         <div style="display:grid;grid-template-columns:48px 1fr;gap:8px;align-items:start;">
                             <div style="display:flex;align-items:center;justify-content:center;min-height:218px;">
                                 <div style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:10px;font-weight:800;color:#334155;letter-spacing:0.08em;text-transform:uppercase;">
-                                    Frecuencia
+                                    Probabilidad
                                 </div>
                             </div>
                             <div>
@@ -578,7 +578,7 @@
                             <th style="border:1px solid #CBD5E1;padding:7px 8px;text-align:left;background:#F8FAFC;width:92px;">Código</th>
                             <th style="border:1px solid #CBD5E1;padding:7px 8px;text-align:left;background:#F8FAFC;">Riesgo</th>
                             <th style="border:1px solid #CBD5E1;padding:7px 8px;text-align:left;background:#F8FAFC;width:95px;">Impacto</th>
-                            <th style="border:1px solid #CBD5E1;padding:7px 8px;text-align:left;background:#F8FAFC;width:95px;">Frecuencia</th>
+                            <th style="border:1px solid #CBD5E1;padding:7px 8px;text-align:left;background:#F8FAFC;width:95px;">Probabilidad</th>
                             <th style="border:1px solid #CBD5E1;padding:7px 8px;text-align:left;background:#F8FAFC;width:110px;">Nivel</th>
                         </tr>
                     </thead>
@@ -588,7 +588,7 @@
                                 <td style="border:1px solid #CBD5E1;padding:7px 8px;word-break:break-word;">${item.codigo}</td>
                                 <td style="border:1px solid #CBD5E1;padding:7px 8px;word-break:break-word;">${item.riesgo}</td>
                                 <td style="border:1px solid #CBD5E1;padding:7px 8px;">${item.impacto}</td>
-                                <td style="border:1px solid #CBD5E1;padding:7px 8px;">${item.frecuencia}</td>
+                                <td style="border:1px solid #CBD5E1;padding:7px 8px;">${item.probabilidad}</td>
                                 <td style="border:1px solid #CBD5E1;padding:7px 8px;font-weight:700;">${item.nivel}</td>
                             </tr>
                         `).join('')}
@@ -618,7 +618,7 @@
             XLSX.utils.book_append_sheet(libro, hoja, 'Riesgos');
             const matriz = construirMatrizCalor(datos);
             const hojaMapa = XLSX.utils.aoa_to_sheet([
-                ['Frecuencia / Impacto', 'Insignificante', 'Menor', 'Moderado', 'Mayor', 'Catastrófico'],
+                ['Probabilidad / Impacto', 'Insignificante', 'Menor', 'Moderado', 'Mayor', 'Catastrófico'],
                 ['Rara', matriz[4][0], matriz[4][1], matriz[4][2], matriz[4][3], matriz[4][4]],
                 ['Improbable', matriz[3][0], matriz[3][1], matriz[3][2], matriz[3][3], matriz[3][4]],
                 ['Posible', matriz[2][0], matriz[2][1], matriz[2][2], matriz[2][3], matriz[2][4]],

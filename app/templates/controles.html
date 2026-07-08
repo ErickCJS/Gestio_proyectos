@@ -13,66 +13,173 @@
 {% endblock %}
 
 {% block contenido %}
-    <div class="tabla-panel">
-        <div class="tabla-scroll table-responsive tabla-wrap mt-2">
-            <table class="table table-hover table-sm align-middle tabla-compacta w-100" id="tablaControles">
-                <thead>
-                    <tr>
-                        <th style="width:90px;">Código</th>
-                        <th>Control</th>
-                        <th style="width:130px;">Tipo</th>
-                        <th>Riesgo</th>
-                        <th>Proceso</th>
-                        <th style="width:95px;" class="text-center">Estado</th>
-                        <th style="width:120px;" class="text-center">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if controles %}
-                        {% for control in controles %}
-                        <tr>
-                            <td>CTL-{{ "%03d"|format(control.id_control) }}</td>
-                            <td>
-                                <div class="fw-semibold">{{ control.nombre }}</div>
-                                <small class="text-secondary">{{ control.descripcion or '' }}</small>
-                            </td>
-                            <td>{{ control.tipo }}</td>
-                            <td>{{ control.riesgo_nombre }}</td>
-                            <td>{{ control.proceso_nombre or 'Sin proceso' }}</td>
-                            <td class="text-center">
-                                {% if control.estado == 'Activo' %}
-                                <span class="badge nivel-riesgo-badge nivel-bajo">Activo</span>
-                                {% else %}
-                                <span class="badge nivel-riesgo-badge nivel-extremo">Inactivo</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                <div class="d-inline-flex gap-1 acciones">
-                                    <button type="button"
-                                        class="btn btn-sm btn-outline-primary"
-                                        onclick='ver_control({{ control.id_control }}, {{ control.nombre|tojson }}, {{ (control.descripcion or "")|tojson }}, {{ control.tipo|tojson }}, {{ control.riesgo_nombre|tojson }}, {{ (control.proceso_nombre or "Sin proceso")|tojson }})'>
-                                        <i class="bi bi-eye-fill text-primary"></i>
-                                    </button>
-                                    <button type="button"
-                                        class="btn btn-sm btn-outline-danger"
-                                        onclick='eliminarControl({{ control.id_control }})'>
-                                        <i class="bi bi-trash2-fill text-danger"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    {% endif %}
-                </tbody>
-            </table>
+    <div class="row g-4">
+        <div class="col-xl-9">
+            <div class="tabla-panel">
+                <div class="tabla-scroll table-responsive tabla-wrap mt-2">
+                    <table class="table table-hover table-sm align-middle tabla-compacta w-100" id="tablaControles">
+                        <thead>
+                            <tr>
+                                <th style="width:90px;">Código</th>
+                                <th>Riesgo</th>
+                                <th>Control</th>
+                                <th style="width:130px;">Tipo</th>
+                                <th style="width:120px;">Impacto</th>
+                                <th style="width:120px;">Probabilidad</th>
+                                <th style="width:120px;" class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if controles %}
+                                {% for control in controles %}
+                                <tr class="fila-control"
+                                    data-id-control="{{ control.id_control }}"
+                                    data-codigo="CTL-{{ '%03d'|format(control.id_control) }}"
+                                    data-nombre="{{ control.nombre }}"
+                                    data-descripcion="{{ control.descripcion or '' }}"
+                                    data-tipo="{{ control.tipo }}"
+                                    data-impacto="{{ control.impacto }}"
+                                    data-probabilidad="{{ control.probabilidad }}"
+                                    data-riesgo-nombre="{{ control.riesgo_nombre }}"
+                                    data-estado="{{ control.estado }}"
+                                    style="cursor:pointer;">
+                                    <td>CTL-{{ "%03d"|format(control.id_control) }}</td>
+                                    <td>{{ control.riesgo_nombre }}</td>
+                                    <td>
+                                        <div class="fw-semibold">{{ control.nombre }}</div>
+                                        <small class="text-secondary">{{ control.descripcion or '' }}</small>
+                                    </td>
+                                    <td>{{ control.tipo }}</td>
+                                    <td>{{ control.impacto }}</td>
+                                    <td>{{ control.probabilidad }}</td>
+                 
+                                    <td class="text-center">
+                                        <div class="d-inline-flex gap-1 acciones">
+                                            <button type="button"
+                                                class="btn btn-sm btn-outline-primary"
+                                                data-action="ver-control"
+                                                data-id-control="{{ control.id_control }}"
+                                                data-nombre="{{ control.nombre }}"
+                                                data-descripcion="{{ control.descripcion or '' }}"
+                                                data-tipo="{{ control.tipo }}"
+                                                data-impacto="{{ control.impacto }}"
+                                                data-probabilidad="{{ control.probabilidad }}"
+                                                data-riesgo-nombre="{{ control.riesgo_nombre }}"
+                                                >
+                                                <i class="bi bi-eye-fill text-primary"></i>
+                                            </button>
+                                            <button type="button"
+                                                class="btn btn-sm btn-outline-danger"
+                                                data-action="eliminar-control"
+                                                data-id-control="{{ control.id_control }}">
+                                                <i class="bi bi-trash2-fill text-danger"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3">
+            <div class="tabla-panel">
+                <div class="px-4 pt-3 pb-2">
+                    <h5 class="fw-semibold mb-0">Detalle</h5>
+                </div>
+                <div class="p-4">
+                    <h5 id="detalleControlNombre" class="fw-bold mb-3">
+                        Seleccione un control
+                    </h5>
+                    <div class="mb-3">
+                        <small class="text-secondary">Código</small>
+                        <div id="detalleControlCodigo" class="fw-semibold">-</div>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-secondary">Descripción</small>
+                        <div id="detalleControlDescripcion">Seleccione un control de la tabla.</div>
+                    </div>
+                    <hr>
+                    <div class="mb-3">
+                        <div class="fw-semibold mb-2">Resumen</div>
+                        <div class="detalle-resumen-riesgo mb-3">
+                            <div class="detalle-resumen-item">
+                                <span>Tipo</span>
+                                <strong id="detalleControlTipo">-</strong>
+                            </div>
+                            <div class="detalle-resumen-item">
+                                <span>Impacto</span>
+                                <strong id="detalleControlImpacto">-</strong>
+                            </div>
+                            <div class="detalle-resumen-item">
+                                <span>Probabilidad</span>
+                                <strong id="detalleControlProbabilidad">-</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-secondary">Riesgo asociado</small>
+                        <div id="detalleControlRiesgo" class="fw-semibold">-</div>
+                    </div>
+       
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
         window.catalogosControles = {
-            riesgos: {{ riesgos | tojson }},
-            procesos: {{ procesos | tojson }}
+            riesgos: {{ riesgos | tojson }}
         };
+        window.addEventListener('DOMContentLoaded', () => {
+            const tabla = document.getElementById('tablaControles');
+            if (tabla) {
+                tabla.addEventListener('click', (event) => {
+                    const botonAccion = event.target.closest('button[data-action]');
+                    if (botonAccion) {
+                        event.stopPropagation();
+                        const accion = botonAccion.getAttribute('data-action');
+
+                        if (accion === 'ver-control' && typeof window.ver_control === 'function') {
+                            window.ver_control(
+                                Number(botonAccion.dataset.idControl),
+                                botonAccion.dataset.nombre || '',
+                                botonAccion.dataset.descripcion || '',
+                                botonAccion.dataset.tipo || '',
+                                botonAccion.dataset.impacto || '',
+                                botonAccion.dataset.probabilidad || '',
+                                botonAccion.dataset.riesgoNombre || '',
+                            );
+                        } else if (accion === 'eliminar-control' && typeof window.eliminarControl === 'function') {
+                            window.eliminarControl(Number(botonAccion.dataset.idControl));
+                        }
+                        return;
+                    }
+
+                    const fila = event.target.closest('tr.fila-control');
+                    if (fila && typeof window.seleccionarFilaControl === 'function' && typeof window.mostrarDetalleControl === 'function') {
+                        window.seleccionarFilaControl(fila);
+                        window.mostrarDetalleControl(
+                            fila.dataset.nombre || '',
+                            fila.dataset.codigo || '',
+                            fila.dataset.descripcion || '',
+                            fila.dataset.tipo || '',
+                            fila.dataset.impacto || '',
+                            fila.dataset.probabilidad || '',
+                            fila.dataset.riesgoNombre || '',
+                        );
+                    }
+                });
+            }
+
+            const primeraFila = document.querySelector('#tablaControles tbody tr.fila-control');
+            if (primeraFila) {
+                primeraFila.click();
+            }
+        });
     </script>
 
     {% if flash %}
@@ -86,4 +193,3 @@
     </div>
     {% endif %}
 {% endblock %}
-

@@ -47,7 +47,7 @@
                     <div class="nav-section-title">General</div>
 
                     <div class="nav-item-mg">
-                        <a href="/dashboard" class="nav-link-mg ">
+                        <a href="/dashboard" class="nav-link-mg {% if request.path == '/dashboard' %}active{% endif %}">
                             <span class="nav-icon-mg"><i class="bi bi-grid-1x2-fill"></i></span>
                             <span class="nav-label-mg">Dashboard</span>
                         </a>
@@ -62,22 +62,22 @@
 
                     <!-- Proyectos -->
                     <div class="nav-item-mg open d-flex gap-1 flex-column">
-                        <a href="/grupos" class="nav-link-mg">
+                        <a href="/grupos" class="nav-link-mg {% if request.path == '/grupos' %}active{% endif %}">
                             <span class="nav-icon-mg"><i class="bi bi-universal-access"></i></span>
                             <span class="nav-label-mg">Grupos</span>
                             <span class="nav-badge badge-orange">4</span>
                         </a>
-                        <a href="/procesos" class="nav-link-mg">
+                        <a href="/procesos" class="nav-link-mg {% if request.path == '/procesos' %}active{% endif %}">
                             <span class="nav-icon-mg"><i class="bi bi-diagram-3-fill"></i></span>
                             <span class="nav-label-mg">Procesos</span>
                             <span class="nav-badge badge-orange">4</span>
                         </a>
-                        <a href="/riesgo" class="nav-link-mg">
+                        <a href="/riesgo" class="nav-link-mg {% if request.path == '/riesgo' %}active{% endif %}">
                             <span class="nav-icon-mg"><i class="bi bi-exclamation-triangle"></i></span>
                             <span class="nav-label-mg">Riesgos</span>
                             <span class="nav-badge badge-orange">4</span>
                         </a>
-                        <a href="/controles" class="nav-link-mg">
+                        <a href="/controles" class="nav-link-mg {% if request.path == '/controles' %}active{% endif %}">
                             <span class="nav-icon-mg"><i class="bi bi-shield-check"></i></span>
                             <span class="nav-label-mg">Controles</span>
                             <span class="nav-badge badge-orange">4</span>

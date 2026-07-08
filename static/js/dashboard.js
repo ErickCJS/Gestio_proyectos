@@ -597,9 +597,33 @@ const mostrar_modal = (tipo, data = {}) => {
     modal_titulo.innerHTML = titulo;
     modal.show();
     setTimeout(() => {
-        if(document.getElementById("impacto")){
-            actualizarMapaRiesgo();
-        }
+        const frm = document.getElementById("frm_crearriesgo");
+        if (!frm) return;
+        frm.addEventListener("submit", async function (e) {
+            e.preventDefault();
+            try {
+                const respuesta = await fetch(this.action,{
+                    method:"POST",
+                    body:new FormData(this)
+                });
+                if(!respuesta.ok){
+                    throw new Error("No se pudo registrar el riesgo.");
+                }
+                mostrarFlash(
+                    "success",
+                    "Riesgo registrado correctamente."
+                );
+                cerrar_modal();
+                setTimeout(()=>{
+                    location.reload();
+                },1200);
+            }catch(error){
+                mostrarFlash(
+                    "danger",
+                    error.message
+                );
+            }
+        });
     },100);
 }
 
@@ -1095,7 +1119,10 @@ const eliminarGrupo = async (id_grupo) => {
 
         window.location.reload();
     } catch (error) {
-        alert(error.message);
+        mostrarFlash(
+            "danger",
+            error.message
+        );
     }
 }
 
@@ -1331,19 +1358,24 @@ async function eliminarRiesgo(id) {
         return;
     }
     try {
-        const respuesta = await fetch(`/riesgo/${id}/eliminar`, {
-            method: "POST"
+        const respuesta = await fetch(`/riesgo/${id}/eliminar`,{
+            method:"POST"
         });
-        if (!respuesta.ok) {
-            throw new Error("No se pudo eliminar el riesgo.");
+        const data = await respuesta.json();
+        if(!respuesta.ok){
+            throw new Error(data.mensaje);
         }
-        location.reload();
-    } catch (error) {
-        alert(error.message);
+        mostrarFlash("success",data.mensaje);
+        setTimeout(()=>{
+            location.reload();
+        },1200);
+    }catch(error){
+        mostrarFlash("warning",error.message);
     }
 }
 
 async function verProcesos(id) {
+    window.idRiesgoActual = id;
     event.stopPropagation();
     try {
         const [respuestaAsociados, respuestaDisponibles] = await Promise.all([ fetch(`/riesgo/${id}/procesos`), fetch(`/riesgo/${id}/procesos_disponibles`)]);
@@ -1354,6 +1386,7 @@ async function verProcesos(id) {
         }
         const procesos = await respuestaAsociados.json();
         const disponibles = await respuestaDisponibles.json();
+        window.procesosDisponibles = disponibles;
         let html = `
         <div class="container-fluid">
             <div id="mensajeSinProcesos" class="alert alert-light border text-center ${procesos.length ? 'd-none' : ''}">
@@ -1361,26 +1394,39 @@ async function verProcesos(id) {
                     Este riesgo aún no tiene procesos asociados.
             </div>
 
-            <div class="mb-3">
-                <label class="form-label fw-semibold">
-                    Buscar proceso
-                </label>
-                <input id="buscarProceso" class="form-control" placeholder="Buscar proceso...">
+            <div class="row g-2 mb-3">
+                <div class="col-md-7">
+                    <label class="form-label modal-label">
+                        Buscar proceso
+                    </label>
+                     <div class="input-group integrantes-search">   
+                        <span class="input-group-text">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input id="buscarProceso" type="text" class="form-control" placeholder="Nombre del proceso" oninput="filtrarProcesosDisponibles()">
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label modal-label">
+                        Proceso encontrado
+                    </label>
+                    <select id="selectProcesoDisponible" class="form-select" onchange="mostrarProcesoSeleccionado()">
+                        <option value="">
+                            Busque un proceso primero
+                        </option>
+                    </select>
+                </div>    
+            </div>
+            
+            <div class="mb-4">
+                <button id="btnAgregarProceso" class="btn btn_primario" style="display:none">
+                    <i class="bi bi-plus-lg me-2"></i>
+                        Agregar proceso
+                </button>
             </div>
 
-            <div id="listaBusqueda" class="list-group mb-4" style="max-height:180px;overflow:auto;">
-        `;
 
-        disponibles.forEach(p=>{
-            html+=`
-                <div class="list-group-item d-flex justify-content-between align-items-center" data-nombre="${p.nombre.toLowerCase()}">
-                    ${p.nombre}
-                    <button class="btn btn-sm btn-success" onclick="agregarProceso(${id}, ${p.id_proceso})">
-                        <i class="bi bi-plus"></i>
-                    </button>
-                </div>
-            `;
-        });
+        `;
 
         html+=`
 
@@ -1414,12 +1460,17 @@ async function verProcesos(id) {
                 Cerrar
             </button>
         `;
+        modal_dialog.className = "modal-dialog modal-dialog-centered modal-xl modal-procesos";
+        modal_dialog.style.maxWidth = "750px";
         modal.show();
         console.log(document.getElementById("buscarProceso"));
         activarBuscador();
 
     } catch (error) {
-        alert(error.message);
+        mostrarFlash(
+            "warning",
+            error.message
+        );
     }
 }
 
@@ -1534,24 +1585,11 @@ function activarBuscador(){
 }
 
 function actualizarListaBusqueda(idRiesgo, disponibles){
-    const contenedor = document.getElementById("listaBusqueda");
-    if(!contenedor){
-        return;
-    }
-    contenedor.innerHTML="";
-    disponibles.forEach(p=>{
-        contenedor.innerHTML +=`
-            <div class="list-group-item d-flex justify-content-between align-items-center" data-nombre="${p.nombre}">
-                ${p.nombre}
-                <button
-                    class="btn btn-sm btn-success"
-                    onclick="agregarProceso(${idRiesgo},${p.id_proceso})">
-                    <i class="bi bi-plus"></i>
-                </button>
-            </div>
-        `;
-    });
-    activarBuscador();
+    window.procesosDisponibles = disponibles;
+    document.getElementById("buscarProceso").value="";
+    document.getElementById("selectProcesoDisponible").innerHTML =
+        `<option value="">Busque un proceso primero</option>`;
+    document.getElementById("btnAgregarProceso").style.display="none";
 }
 
 
@@ -1585,3 +1623,49 @@ window.calcularNivelRiesgo = calcularNivelRiesgo;
 window.obtenerColorNivelRiesgo = obtenerColorNivelRiesgo;
 window.ver_control = ver_control;
 window.eliminarControl = eliminarControl;
+
+function filtrarProcesosDisponibles(){
+    const texto = document
+        .getElementById("buscarProceso")
+        .value
+        .trim()
+        .toLowerCase();
+    const select = document.getElementById("selectProcesoDisponible");
+    select.innerHTML = "";
+    if(texto===""){
+        select.innerHTML =
+            `<option value="">Busque un proceso primero</option>`;
+        return;
+    }
+    const encontrados = window.procesosDisponibles.filter(p =>
+        p.nombre.toLowerCase().includes(texto)
+    );
+    if(encontrados.length===0){
+        select.innerHTML =
+            `<option value="">No se encontraron resultados</option>`;
+        return;
+    }
+    select.innerHTML =
+        `<option value="">Seleccione un proceso</option>`;
+    encontrados.forEach(p=>{
+        select.innerHTML +=
+        `<option value="${p.id_proceso}">
+            ${p.nombre}
+        </option>`;
+    });
+}
+
+
+function mostrarProcesoSeleccionado(){
+    const boton = document.getElementById("btnAgregarProceso");
+    const idProceso =
+        document.getElementById("selectProcesoDisponible").value;
+    if(!idProceso){
+        boton.style.display="none";
+        return;
+    }
+    boton.style.display="inline-flex";
+    boton.onclick=function(){
+        agregarProceso(window.idRiesgoActual,idProceso);
+    };
+}

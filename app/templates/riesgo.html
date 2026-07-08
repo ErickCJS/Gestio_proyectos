@@ -265,12 +265,38 @@
 </div>
 
 {% if flash %}
-    <script>
-        document.addEventListener('DOMContentLoaded', function(){
-            mostrar_mensaje_modal({{ flash.texto | tojson }}, {{ flash.tipo | tojson }});
-        });
-    </script>
-{% endif %}
+    <div id="flashMensaje" class="app-flash app-flash-{{ flash.tipo }}">
+        <div class="flash-icono">
+            {% if flash.tipo=="success" %}
+                <i class="bi bi-check-circle-fill"></i>
+            {% elif flash.tipo=="danger" %}
+                <i class="bi bi-x-circle-fill"></i>
+            {% elif flash.tipo=="warning" %}
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            {% else %}
+                <i class="bi bi-info-circle-fill"></i>
+            {% endif %}
+        </div>
+        <div class="flash-texto">
+            {{ flash.texto }}
+        </div>
+    </div>
+<script>
+    window.addEventListener("load",()=>{
+        const flash=document.getElementById("flashMensaje");
+        if(!flash) return;
+        setTimeout(()=>{
+            flash.classList.add("mostrar");
+        },100);
+        setTimeout(()=>{
+            flash.classList.remove("mostrar");
+            setTimeout(()=>{
+                flash.remove();
+            },400);
+        },3500);
+    });
+</script>
+
 
 {% endif %}
 

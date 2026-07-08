@@ -176,7 +176,7 @@ def rutas(app, templates):
                 nombre,
                 descripcion,
                 impacto,
-                probabilidad,
+                frecuencia,
                 nivel
             )
             VALUES(
@@ -253,12 +253,32 @@ def rutas(app, templates):
             if resultado["total"] > 0:
 
                 db.close()
-                set_flash(
-                    request,
-                    "warning",
-                    "No se puede eliminar el riesgo porque tiene procesos asociados."
+                return JSONResponse(
+                    {
+                        "ok": False,
+                        "mensaje": "No se puede eliminar el riesgo porque tiene procesos asociados."
+                    },
+                    status_code=400
                 )
-                return response
+            
+            cursor.execute("""
+                SELECT COUNT(*) AS total
+                FROM control
+                WHERE id_riesgo = %s
+            """, (id,))
+
+            resultado = cursor.fetchone()
+
+            if resultado["total"] > 0:
+                db.close()
+                return JSONResponse(
+                    {
+                        "ok": False,
+                        "mensaje": "No se puede eliminar el riesgo porque tiene controles asociados."
+                    },
+                    status_code=400
+                )
+
             # Si no tiene procesos, eliminar el riesgo
             cursor.execute("""
             DELETE
@@ -268,12 +288,12 @@ def rutas(app, templates):
             db.commit()
         db.close()
 
-        set_flash(
-            request,
-            "success",
-            "Riesgo eliminado."
-        )
-        return response
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse({
+            "ok": True,
+            "mensaje": "Riesgo eliminado correctamente."
+        })
 
 
     # --------------------------------------------------

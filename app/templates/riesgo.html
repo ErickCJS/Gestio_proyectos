@@ -1,0 +1,371 @@
+{% extends '/maestras/dashboard.html' %}
+
+{% block titulo_contenido %}
+    <h4>Gestión de Riesgos</h4>
+    <span>Registra, evalúa y administra los riesgos de la organización.</span>
+{% endblock %}
+
+{% block accion_contenido %}
+    <button class="btn btn-sm btn_primario" onclick="mostrar_modal('nriesgo')">
+        <i class="bi bi-plus-circle me-2"></i>
+            Nuevo riesgo
+    </button>
+{% endblock %}
+
+{% block contenido %}
+
+<div class="row g-4">
+
+    <!--========================
+            TABLA
+    ========================-->
+
+    <div class="col-xl-9">
+        <div class="tabla-panel">
+            <div class="px-4 pt-3 pb-2 d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="fw-semibold mb-0">
+                        Riesgos registrados
+                    </h5>
+                    <small class="text-secondary">
+                        Seleccione un riesgo para visualizar su detalle.
+                    </small>
+                </div>
+            </div>
+
+            <div class="tabla-scroll table-responsive tabla-wrap">
+                <table class="table table-hover align-middle" id="tablaRiesgos">
+                    <thead>
+                        <tr>
+                            <th style="width:90px">
+                                Código
+                            </th>
+                            <th>
+                                Riesgo
+                            </th>
+                            <th style="width:130px">
+                                Impacto
+                            </th>
+                            <th style="width:140px">
+                                Frecuencia
+                            </th>
+                            <th style="width:120px">
+                                Nivel
+                            </th>
+                            <th class="text-center" style="width:120px">
+                                Acciones
+                            </th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        {% if riesgos %}
+                        {% for riesgo in riesgos %}
+
+                        <tr class="fila-riesgo" onclick="seleccionarFila(this);mostrarDetalle( '{{ riesgo.nombre }}', 'RSK-{{ '%03d'|format(riesgo.id_riesgo) }}', '{{ riesgo.descripcion }}', '{{ riesgo.impacto }}',
+                            '{{ riesgo.frecuencia }}', '{{ riesgo.nivel }}' )" style="cursor:pointer;">
+                            <td>
+                                RSK-{{ "%03d"|format(riesgo.id_riesgo) }}
+                            </td>
+                            <td>
+                                <div class="fw-semibold">
+                                    {{ riesgo.nombre }}
+                                </div>
+                                <small class="text-secondary">
+                                    {{ riesgo.descripcion }}
+                                </small>
+                            </td>
+                            <td>
+                                {{ riesgo.impacto }}
+                            </td>
+                            <td>
+                                {{ riesgo.frecuencia }}
+                            </td>
+                            <td>
+                                {% if riesgo.nivel=="BAJO" %}
+                                <span class="badge bg-success">
+                                    Bajo
+                                </span>
+                                {% elif riesgo.nivel=="MEDIO" %}
+                                <span class="badge bg-warning text-dark">
+                                    Medio
+                                </span>
+                                {% elif riesgo.nivel=="ALTO" %}
+                                <span class="badge bg-danger">
+                                    Alto
+                                </span>
+                                {% else %}
+                                <span class="badge bg-dark">
+                                    Extremo
+                                </span>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-center">
+                                <div class="d-inline-flex gap-1 asciones">
+                                    <button class="btn btn-sm btn-outline-primary"
+                                        onclick="event.stopPropagation();verProcesos({{ riesgo.id_riesgo }})">
+                                        <i class="bi bi-diagram-3 text-primary"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger"
+                                        onclick="event.stopPropagation();eliminarRiesgo({{ riesgo.id_riesgo }})">
+                                        <i class="bi bi-trash2-fill text-danger"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        {% endfor %}
+                        {% else %}
+
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-secondary">
+                                No existen riesgos registrados.
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <!--=========================================
+            PANEL DERECHO (PIRANI)
+==========================================-->
+
+    <div class="col-xl-3">
+        <div class="tabla-panel">
+            <div class="px-4 pt-3 pb-2">
+                <h5 class="fw-semibold mb-0">
+                    Detalle
+                </h5>
+            </div>
+            <div class="p-4">
+                <h5 id="detalleNombre" class="fw-bold mb-3">
+                    Seleccione un riesgo
+                </h5>
+                <div class="mb-3">
+                    <small class="text-secondary">
+                        Código
+                    </small>
+                    <div id="detalleCodigo" class="fw-semibold">
+                        -
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <small class="text-secondary">
+                        Descripción
+                    </small>
+                    <div id="detalleDescripcion">
+                        Seleccione un riesgo de la tabla.
+                    </div>
+                </div>
+                <hr>
+                <div class="mb-3">
+                    <div class="fw-semibold mb-2">
+                        Riesgo Inherente
+                    </div>
+                    <span id="detalleNivel" class="badge bg-secondary">
+                        -
+                    </span>
+                </div>
+
+                <!--============================
+                    MAPA PIRANI
+            =============================-->
+
+                <div class="mx-auto position-relative" style="width:210px;height:210px;">
+
+                    <div style="display:grid;grid-template-columns:repeat(5,40px);grid-template-rows:repeat(5,40px);gap:2px;">
+
+                        {% for fila in range(5) %}
+                        {% for columna in range(5) %}
+
+                        {% set colores = [
+                        ['#fbbf24','#f97316','#f97316','#ef4444','#ef4444'],
+                        ['#fbbf24','#fbbf24','#f97316','#f97316','#ef4444'],
+                        ['#22c55e','#fbbf24','#fbbf24','#f97316','#f97316'],
+                        ['#22c55e','#22c55e','#fbbf24','#fbbf24','#f97316'],
+                        ['#22c55e','#22c55e','#22c55e','#fbbf24','#f97316']
+                        ] %}
+
+                        <div style="background:{{ colores[fila][columna] }}; border-radius:4px;">
+                        </div>
+
+                        {% endfor %}
+
+                        {% endfor %}
+
+                    </div>
+
+
+                    <div id="marcadorMapa" style="position:absolute;width:38px;height:38px;
+                    background:transparent;color:white;border-radius:6px;display:none;justify-content:center;align-items:center;font-weight:bold;transition:.35s;top:166px;left:6px;">
+                        R.I.
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <div class="d-flex justify-content-between">
+                        <span>
+                            Impacto
+                        </span>
+                        <strong id="detalleImpacto">
+                            -
+                        </strong>
+                    </div>
+                    <div class="d-flex justify-content-between mt-2">
+                        <span>
+                            Frecuencia
+                        </span>
+                        <strong id="detalleFrecuencia">
+                            -
+                        </strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if flash %}
+    <div id="flashMensaje" class="app-flash app-flash-{{ flash.tipo }}">
+        <div class="flash-icono">
+            {% if flash.tipo=="success" %}
+                <i class="bi bi-check-circle-fill"></i>
+            {% elif flash.tipo=="danger" %}
+                <i class="bi bi-x-circle-fill"></i>
+            {% elif flash.tipo=="warning" %}
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            {% else %}
+                <i class="bi bi-info-circle-fill"></i>
+            {% endif %}
+        </div>
+        <div class="flash-texto">
+            {{ flash.texto }}
+        </div>
+    </div>
+<script>
+    window.addEventListener("load",()=>{
+        const flash=document.getElementById("flashMensaje");
+        if(!flash) return;
+        setTimeout(()=>{
+            flash.classList.add("mostrar");
+        },100);
+        setTimeout(()=>{
+            flash.classList.remove("mostrar");
+            setTimeout(()=>{
+                flash.remove();
+            },400);
+        },3500);
+    });
+</script>
+
+
+{% endif %}
+
+<script>
+
+    window.catalogoRiesgos = {
+        procesos: {{ procesos | tojson }}
+    };
+
+    function mostrarDetalle(
+        nombre,codigo,descripcion,impacto,frecuencia,nivel
+    ) {
+
+        document.getElementById("detalleNombre").innerHTML = nombre;
+        document.getElementById("detalleCodigo").innerHTML = codigo;
+        document.getElementById("detalleDescripcion").innerHTML = descripcion;
+        document.getElementById("detalleImpacto").innerHTML = impacto;
+        document.getElementById("detalleFrecuencia").innerHTML = frecuencia;
+        const badge = document.getElementById("detalleNivel");
+        badge.className = "badge";
+
+        switch (nivel) {
+            case "BAJO":
+                badge.classList.add("bg-success");
+                break;
+            case "MEDIO":
+                badge.classList.add("bg-warning", "text-dark");
+                break;
+            case "ALTO":
+                badge.classList.add("bg-danger");
+                break;
+            default:
+                badge.classList.add("bg-dark");
+                break;
+        }
+
+        badge.innerHTML = nivel;
+
+        moverMarcador(
+            impacto,
+            frecuencia
+        );
+
+    }
+
+
+    function moverMarcador(
+        impacto,
+        frecuencia
+    ) {
+
+        const impactos = {
+            "INSIGNIFICANTE": 0,"MENOR": 1,"MODERADO": 2,"MAYOR": 3,"CATASTROFICO": 4
+        };
+
+        const frecuencias = {
+            "RARA": 4,"IMPROBABLE": 3,"POSIBLE": 2,"PROBABLE": 1,"CASI_SEGURO": 0
+        };
+
+        const colores = [
+
+        ["#fbbf24","#f97316","#f97316","#ef4444","#ef4444"],
+        ["#fbbf24","#fbbf24","#f97316","#f97316","#ef4444"],
+        ["#22c55e","#fbbf24","#fbbf24","#f97316","#f97316"],
+        ["#22c55e","#22c55e","#fbbf24","#fbbf24","#f97316"],
+        ["#22c55e","#22c55e","#22c55e","#fbbf24","#f97316"]
+
+        ];
+
+        const x = impactos[impacto];
+        const y = frecuencias[frecuencia];
+
+        const punto = document.getElementById("marcadorMapa");
+        punto.style.display = "flex";
+
+        punto.style.left = (x * 42 + 2) + "px";
+        punto.style.top = (y * 42 + 2) + "px";
+        punto.style.background = colores[y][x];
+
+    }
+
+    function seleccionarFila(fila){
+        document.querySelectorAll(".fila-riesgo").forEach(f=>{
+            f.classList.remove("table-active");
+        });
+        fila.classList.add("table-active");
+
+    }
+
+    
+    const buscador = document.getElementById("buscarRiesgo");
+    if (buscador) {
+        buscador.addEventListener("keyup", function () {
+            const texto = this.value.toLowerCase();
+            document.querySelectorAll("#tablaRiesgos tbody tr").forEach(fila => {
+                fila.style.display =
+                    fila.innerText.toLowerCase().includes(texto)
+                        ? ""
+                        : "none";
+            });
+        });
+    }
+
+</script>
+
+{% endblock %}

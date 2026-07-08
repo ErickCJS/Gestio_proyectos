@@ -1159,10 +1159,10 @@ function crearMapaModal() {
 
     const colores = [
         ["#fbbf24","#f97316","#f97316","#ef4444","#ef4444"],
-        ["#fbbf24","#fbbf24","#f97316","#f97316","#ef4444"],
+        ["#22c55e","#fbbf24","#f97316","#f97316","#ef4444"],
         ["#22c55e","#fbbf24","#fbbf24","#f97316","#f97316"],
         ["#22c55e","#22c55e","#fbbf24","#fbbf24","#f97316"],
-        ["#22c55e","#22c55e","#22c55e","#fbbf24","#f97316"]
+        ["#abf2c5","#22c55e","#22c55e","#22c55e","#fbbf24"]
     ];
 
     let html = "";
@@ -1186,10 +1186,10 @@ function crearMapaModal() {
 function obtenerColorRiesgoMapa(impacto, probabilidad) {
     const colores = [
         ["#fbbf24","#f97316","#f97316","#ef4444","#ef4444"],
-        ["#fbbf24","#fbbf24","#f97316","#f97316","#ef4444"],
+        ["#22c55e","#fbbf24","#f97316","#f97316","#ef4444"],
         ["#22c55e","#fbbf24","#fbbf24","#f97316","#f97316"],
         ["#22c55e","#22c55e","#fbbf24","#fbbf24","#f97316"],
-        ["#22c55e","#22c55e","#22c55e","#fbbf24","#f97316"]
+        ["#abf2c5","#22c55e","#22c55e","#22c55e","#fbbf24"]
     ];
     const impactos = {
         INSIGNIFICANTE:0, MENOR:1, MODERADO:2, MAYOR:3, CATASTROFICO:4

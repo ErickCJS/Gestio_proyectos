@@ -450,6 +450,16 @@ const mostrar_modal = (tipo, data = {}) => {
                             <option value="Muy alta">Muy alta</option>
                         </select>
                     </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label modal-label">Máximo baja probabilidad (%)</label>
+                            <input type="number" class="form-control" name="maximo_baja_probabilidad" min="0" max="100" step="1" value="100">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label modal-label">Máximo baja impacto (%)</label>
+                            <input type="number" class="form-control" name="maximo_baja_impacto" min="0" max="100" step="1" value="100">
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label modal-label">Mitigación probabilidad (%)</label>
                         <div class="d-flex align-items-center gap-2">
@@ -515,6 +525,16 @@ const mostrar_modal = (tipo, data = {}) => {
                             <option value="Alta" ${data.solidez_control === 'Alta' ? 'selected' : ''}>Alta</option>
                             <option value="Muy alta" ${data.solidez_control === 'Muy alta' ? 'selected' : ''}>Muy alta</option>
                         </select>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label modal-label">Máximo baja probabilidad (%)</label>
+                            <input type="number" class="form-control" name="maximo_baja_probabilidad" min="0" max="100" step="1" value="${data.maximo_baja_probabilidad ?? 100}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label modal-label">Máximo baja impacto (%)</label>
+                            <input type="number" class="form-control" name="maximo_baja_impacto" min="0" max="100" step="1" value="${data.maximo_baja_impacto ?? 100}">
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label modal-label">Mitigación probabilidad (%)</label>
@@ -1067,6 +1087,8 @@ const mostrarDetalleControl = (
     descripcion,
     tipo,
     solidez_control,
+    maximo_baja_probabilidad,
+    maximo_baja_impacto,
     mitigacion_probabilidad,
     mitigacion_impacto,
     riesgo_nombre,
@@ -1082,6 +1104,8 @@ const mostrarDetalleControl = (
     const detalleDescripcion = document.getElementById('detalleControlDescripcion');
     const detalleTipo = document.getElementById('detalleControlTipo');
     const detalleSolidez = document.getElementById('detalleControlSolidez');
+    const detalleMaximoProbabilidad = document.getElementById('detalleControlMaximoProbabilidad');
+    const detalleMaximoImpacto = document.getElementById('detalleControlMaximoImpacto');
     const detalleMitigacionProbabilidad = document.getElementById('detalleControlMitigacionProbabilidad');
     const detalleMitigacionImpacto = document.getElementById('detalleControlMitigacionImpacto');
     const detalleRiesgo = document.getElementById('detalleControlRiesgo');
@@ -1092,6 +1116,8 @@ const mostrarDetalleControl = (
     if (detalleDescripcion) detalleDescripcion.textContent = descripcion || '-';
     if (detalleTipo) detalleTipo.textContent = tipo || '-';
     if (detalleSolidez) detalleSolidez.textContent = solidez_control || '-';
+    if (detalleMaximoProbabilidad) detalleMaximoProbabilidad.textContent = `${maximo_baja_probabilidad}%`;
+    if (detalleMaximoImpacto) detalleMaximoImpacto.textContent = `${maximo_baja_impacto}%`;
     if (detalleMitigacionProbabilidad) detalleMitigacionProbabilidad.textContent = `${mitigacion_probabilidad}%`;
     if (detalleMitigacionImpacto) detalleMitigacionImpacto.textContent = `${mitigacion_impacto}%`;
     if (detalleRiesgo) detalleRiesgo.textContent = riesgo_nombre || '-';

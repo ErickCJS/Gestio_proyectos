@@ -152,6 +152,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             detalleNivel.className = `dash-level-pill nivel-riesgo-badge ${nivelClase[riesgo.nivel] || ''}`;
                             detalleNivel.textContent = riesgo.nivel;
                             detalleContenido.className = 'dash-detail-content';
+                            const inherente = riesgo.riesgo_inherente || {};
                             const residual = riesgo.riesgo_residual || {};
                             detalleContenido.innerHTML = `
                                 <div class="dash-detail-actions">
@@ -166,8 +167,12 @@ document.addEventListener('DOMContentLoaded', function () {
                                 <div class="dash-risk-flow">
                                     <article class="dash-flow-card inherente">
                                         <small>Riesgo inherente</small>
-                                        <strong>${numero(residual.riesgo_inherente)}</strong>
-                                        <div><span>${porcentaje(residual.probabilidad_inicial)} prob.</span><span>${porcentaje(residual.impacto_inicial)} imp.</span></div>
+                                        <strong>${numero(inherente.riesgo_inherente_exacto ?? residual.riesgo_inherente)}</strong>
+                                        <div>
+                                            <span>${porcentaje(inherente.probabilidad_inicial ?? residual.probabilidad_inicial)} prob.</span>
+                                            <span>${porcentaje(inherente.impacto_inicial ?? residual.impacto_inicial)} imp.</span>
+                                            <span>${texto(inherente.nivel || riesgo.nivel)}</span>
+                                        </div>
                                     </article>
                                     <div class="dash-flow-arrow"><i class="bi bi-arrow-right"></i></div>
                                     <article class="dash-flow-card residual">
@@ -175,6 +180,18 @@ document.addEventListener('DOMContentLoaded', function () {
                                         <strong>${porcentaje(residual.probabilidad_residual)} / ${porcentaje(residual.impacto_residual)}</strong>
                                         <div><span>${texto(residual.probabilidad_residual_categoria || '-')}</span><span>${texto(residual.impacto_residual_categoria || '-')}</span></div>
                                     </article>
+                                </div>
+                                <div class="dash-inherent-panel">
+                                    <div class="dash-section-title">
+                                        <h6>Evaluación inherente</h6>
+                                        <span>Matriz 5x5</span>
+                                    </div>
+                                    <div class="dash-residual-grid compact">
+                                        <span><b>${porcentaje(inherente.probabilidad_inicial ?? residual.probabilidad_inicial)}</b><small>${texto(inherente.probabilidad_categoria || 'Probabilidad')}</small></span>
+                                        <span><b>${porcentaje(inherente.impacto_inicial ?? residual.impacto_inicial)}</b><small>${texto(inherente.impacto_categoria || 'Impacto')}</small></span>
+                                        <span><b>${numero(inherente.riesgo_inherente_exacto ?? residual.riesgo_inherente)}</b><small>Inherente exacto</small></span>
+                                        <span><b>${numero(inherente.riesgo_inherente_categorizado ?? residual.riesgo_inherente)}</b><small>Inherente categ.</small></span>
+                                    </div>
                                 </div>
                                 <div class="dash-residual-panel">
                                     <div class="dash-section-title">
@@ -215,9 +232,11 @@ document.addEventListener('DOMContentLoaded', function () {
                                                 <div><strong>${texto(control.nombre)}</strong><span>${texto(control.estado)}</span></div>
                                                 <p>${texto(control.descripcion || 'Sin descripción.')}</p>
                                                 <div class="dash-control-tags">
-                                                    <span>${texto(control.solidez_control)} (${numero(control.solidez_valor)})</span>
-                                                    <span>Prob. ${porcentaje(control.mitigacion_probabilidad)}</span>
-                                                    <span>Imp. ${porcentaje(control.mitigacion_impacto)}</span>
+                                                    <span>Máx. ${porcentaje(control.maximo_baja_probabilidad)} / ${porcentaje(control.maximo_baja_impacto)}</span>
+                                                    <span>Solidez ${texto(control.solidez_control)} (${porcentaje(control.solidez_valor)})</span>
+                                                    <span>Cap. ${porcentaje(control.capacidad_real_probabilidad)} / ${porcentaje(control.capacidad_real_impacto)}</span>
+                                                    <span>Mit. ${porcentaje(control.mitigacion_probabilidad)} / ${porcentaje(control.mitigacion_impacto)}</span>
+                                                    <span>Red. ${porcentaje(control.reduccion_real_probabilidad)} / ${porcentaje(control.reduccion_real_impacto)}</span>
                                                 </div>
                                             </article>
                                         `).join('') : '<div class="dash-empty-mini">Este riesgo aún no tiene controles asociados.</div>'}

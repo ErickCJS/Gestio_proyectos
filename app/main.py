@@ -90,6 +90,52 @@ def _categoria_residual(valor, categorias):
     return categorias[-1][1], categorias[-1][2]
 
 
+def asegurar_columnas_control_residual(db):
+    columnas = {
+        "maximo_baja_probabilidad": "DECIMAL(5,2) NOT NULL DEFAULT 100",
+        "maximo_baja_impacto": "DECIMAL(5,2) NOT NULL DEFAULT 100",
+    }
+    with db.cursor() as cursor:
+        cursor.execute("""
+            SELECT COLUMN_NAME
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'control'
+        """)
+        existentes = {fila["COLUMN_NAME"] for fila in cursor.fetchall()}
+        for columna, definicion in columnas.items():
+            if columna not in existentes:
+                cursor.execute(f"ALTER TABLE control ADD COLUMN {columna} {definicion}")
+    db.commit()
+
+
+def calcular_reporte_riesgo_inherente(riesgo):
+    probabilidad_inicial = VALORES_PROBABILIDAD_RESIDUAL.get(riesgo.get("probabilidad"), 0)
+    impacto_inicial = VALORES_IMPACTO_RESIDUAL.get(riesgo.get("impacto"), 0)
+    riesgo_inherente = (probabilidad_inicial * impacto_inicial) / 100
+    probabilidad_categoria, probabilidad_categorizada = _categoria_residual(
+        probabilidad_inicial,
+        CATEGORIAS_PROBABILIDAD_RESIDUAL,
+    )
+    impacto_categoria, impacto_categorizado = _categoria_residual(
+        impacto_inicial,
+        CATEGORIAS_IMPACTO_RESIDUAL,
+    )
+    riesgo_categorizado = (probabilidad_categorizada * impacto_categorizado) / 100
+
+    return {
+        "probabilidad_inicial": probabilidad_inicial,
+        "impacto_inicial": impacto_inicial,
+        "probabilidad_categoria": probabilidad_categoria,
+        "probabilidad_categorizada": probabilidad_categorizada,
+        "impacto_categoria": impacto_categoria,
+        "impacto_categorizado": impacto_categorizado,
+        "riesgo_inherente_exacto": _redondear(riesgo_inherente),
+        "riesgo_inherente_categorizado": _redondear(riesgo_categorizado),
+        "nivel": riesgo.get("nivel", ""),
+    }
+
+
 def calcular_reporte_riesgo_residual(riesgo, controles):
     probabilidad_inicial = VALORES_PROBABILIDAD_RESIDUAL.get(riesgo.get("probabilidad"), 0)
     impacto_inicial = VALORES_IMPACTO_RESIDUAL.get(riesgo.get("impacto"), 0)
@@ -102,10 +148,14 @@ def calcular_reporte_riesgo_residual(riesgo, controles):
     for control in controles:
         solidez = control.get("solidez_control") or "Media"
         solidez_valor = VALORES_SOLIDEZ_CONTROL.get(solidez, 50)
+        maximo_baja_probabilidad = _porcentaje(control.get("maximo_baja_probabilidad", 100))
+        maximo_baja_impacto = _porcentaje(control.get("maximo_baja_impacto", 100))
         mitigacion_probabilidad = _porcentaje(control.get("mitigacion_probabilidad"))
         mitigacion_impacto = _porcentaje(control.get("mitigacion_impacto"))
-        reduccion_probabilidad = (mitigacion_probabilidad * solidez_valor) / 100
-        reduccion_impacto = (mitigacion_impacto * solidez_valor) / 100
+        capacidad_probabilidad = (maximo_baja_probabilidad * solidez_valor) / 100
+        capacidad_impacto = (maximo_baja_impacto * solidez_valor) / 100
+        reduccion_probabilidad = (maximo_baja_probabilidad * solidez_valor * mitigacion_probabilidad) / 10000
+        reduccion_impacto = (maximo_baja_impacto * solidez_valor * mitigacion_impacto) / 10000
 
         if mitigacion_probabilidad > 0:
             reducciones_probabilidad.append(reduccion_probabilidad)
@@ -113,6 +163,10 @@ def calcular_reporte_riesgo_residual(riesgo, controles):
             reducciones_impacto.append(reduccion_impacto)
 
         control["solidez_valor"] = solidez_valor
+        control["maximo_baja_probabilidad"] = _redondear(maximo_baja_probabilidad)
+        control["maximo_baja_impacto"] = _redondear(maximo_baja_impacto)
+        control["capacidad_real_probabilidad"] = _redondear(capacidad_probabilidad)
+        control["capacidad_real_impacto"] = _redondear(capacidad_impacto)
         control["mitigacion_probabilidad"] = _redondear(mitigacion_probabilidad)
         control["mitigacion_impacto"] = _redondear(mitigacion_impacto)
         control["reduccion_real_probabilidad"] = _redondear(reduccion_probabilidad)
@@ -121,6 +175,10 @@ def calcular_reporte_riesgo_residual(riesgo, controles):
             "nombre": control.get("nombre", ""),
             "solidez": solidez,
             "solidez_valor": solidez_valor,
+            "maximo_baja_probabilidad": _redondear(maximo_baja_probabilidad),
+            "maximo_baja_impacto": _redondear(maximo_baja_impacto),
+            "capacidad_real_probabilidad": _redondear(capacidad_probabilidad),
+            "capacidad_real_impacto": _redondear(capacidad_impacto),
             "mitigacion_probabilidad": _redondear(mitigacion_probabilidad),
             "mitigacion_impacto": _redondear(mitigacion_impacto),
             "reduccion_real_probabilidad": _redondear(reduccion_probabilidad),
@@ -191,6 +249,8 @@ def obtener_metricas_dashboard():
         return metricas
 
     try:
+        asegurar_columnas_control_residual(db)
+
         with db.cursor() as cursor:
             for clave, tabla in (
                 ("grupos", "grupo"),
@@ -297,6 +357,8 @@ def obtener_metricas_dashboard():
                     descripcion,
                     tipo,
                     solidez_control,
+                    COALESCE(maximo_baja_probabilidad, 100) AS maximo_baja_probabilidad,
+                    COALESCE(maximo_baja_impacto, 100) AS maximo_baja_impacto,
                     mitigacion_probabilidad,
                     mitigacion_impacto,
                     estado
@@ -311,6 +373,8 @@ def obtener_metricas_dashboard():
                     "descripcion": control["descripcion"] or "",
                     "tipo": control["tipo"],
                     "solidez_control": control["solidez_control"],
+                    "maximo_baja_probabilidad": control["maximo_baja_probabilidad"],
+                    "maximo_baja_impacto": control["maximo_baja_impacto"],
                     "mitigacion_probabilidad": control["mitigacion_probabilidad"],
                     "mitigacion_impacto": control["mitigacion_impacto"],
                     "estado": control["estado"]
@@ -336,6 +400,7 @@ def obtener_metricas_dashboard():
                 probabilidad_valor = valores_probabilidad.get(riesgo["probabilidad"], 0)
                 puntaje = impacto_valor * probabilidad_valor
                 controles_riesgo = controles_por_riesgo.get(riesgo["id_riesgo"], [])
+                reporte_inherente = calcular_reporte_riesgo_inherente(riesgo)
                 reporte_residual = calcular_reporte_riesgo_residual(riesgo, controles_riesgo)
                 riesgos_detalle.append({
                     "id_riesgo": riesgo["id_riesgo"],
@@ -351,6 +416,7 @@ def obtener_metricas_dashboard():
                     "procesos": procesos_riesgo,
                     "grupos": grupos,
                     "controles": controles_riesgo,
+                    "riesgo_inherente": reporte_inherente,
                     "riesgo_residual": reporte_residual
                 })
 
@@ -387,6 +453,20 @@ def _nivel_estilo(nivel):
     }.get(nivel, 0)
 
 
+def _nivel_estilo_marcado(nivel):
+    return {
+        "MUY BAJO": 10,
+        "BAJO": 11,
+        "MEDIO": 12,
+        "ALTO": 13,
+        "EXTREMO": 14,
+    }.get(nivel, _nivel_estilo(nivel))
+
+
+def _texto_riesgo(valor):
+    return str(valor or "-").replace("_", " ").title()
+
+
 def _nivel_desde_puntaje(puntaje):
     if puntaje == 1:
         return "MUY BAJO"
@@ -401,30 +481,48 @@ def _nivel_desde_puntaje(puntaje):
 
 def construir_excel_detalle_riesgo(riesgo):
     filas = []
-    merges = ["A1:F1", "A3:F3", "A9:F9", "A17:F17", "A25:F25"]
+    merges = ["A1:H1", "A3:H3", "A10:H10", "A20:H20"]
 
-    filas.append(_excel_row(1, [("A", "MAGERISK - Detalle del riesgo", 1)]))
+    residual = riesgo.get("riesgo_residual", {})
+    inherente = riesgo.get("riesgo_inherente", {})
+    impacto_texto = _texto_riesgo(riesgo.get("impacto"))
+    probabilidad_texto = _texto_riesgo(riesgo.get("probabilidad"))
+    ubicacion = f"Probabilidad {riesgo.get('probabilidad_valor', '-')}, Impacto {riesgo.get('impacto_valor', '-')}, Puntaje {riesgo.get('puntaje', '-')}"
+
+    filas.append(_excel_row(1, [("A", "MAGERISK - Reporte ejecutivo de riesgo", 1)]))
+    filas.append(_excel_row(2, [("A", "Exportación del detalle, evaluación inherente, mapa de calor y controles asociados.", 15)]))
     filas.append(_excel_row(3, [("A", "Resumen ejecutivo", 2)]))
-    filas.append(_excel_row(4, [("A", "Código", 3), ("B", riesgo["codigo"], 0), ("C", "Riesgo", 3), ("D", riesgo["nombre"], 0)]))
-    filas.append(_excel_row(5, [("A", "Nivel", 3), ("B", riesgo["nivel"], _nivel_estilo(riesgo["nivel"])), ("C", "Puntaje", 3), ("D", riesgo["puntaje"], 0)]))
-    filas.append(_excel_row(6, [("A", "Impacto", 3), ("B", riesgo["impacto"], 0), ("C", "Probabilidad", 3), ("D", riesgo["probabilidad"], 0)]))
-    filas.append(_excel_row(7, [("A", "Descripción", 3), ("B", riesgo["descripcion"] or "Sin descripción registrada.", 0)]))
+    filas.append(_excel_row(4, [("A", "Código", 3), ("B", riesgo["codigo"], 16), ("C", "Riesgo", 3), ("D", riesgo["nombre"], 16), ("F", "Nivel", 3), ("G", riesgo["nivel"], _nivel_estilo(riesgo["nivel"]))]))
+    filas.append(_excel_row(5, [("A", "Impacto", 3), ("B", impacto_texto, 16), ("C", "Probabilidad", 3), ("D", probabilidad_texto, 16), ("F", "Puntaje matriz", 3), ("G", riesgo["puntaje"], 16)]))
+    filas.append(_excel_row(6, [("A", "Descripción", 3), ("B", riesgo["descripcion"] or "Sin descripción registrada.", 16)]))
+    merges.append("B6:H6")
+    filas.append(_excel_row(7, [("A", "Riesgo inherente", 3), ("B", inherente.get("riesgo_inherente_exacto", residual.get("riesgo_inherente", 0)), 16), ("C", "Prob. inicial", 3), ("D", f"{inherente.get('probabilidad_inicial', residual.get('probabilidad_inicial', 0))}%", 16), ("F", "Impacto inicial", 3), ("G", f"{inherente.get('impacto_inicial', residual.get('impacto_inicial', 0))}%", 16)]))
+    filas.append(_excel_row(8, [("A", "Ubicación", 3), ("B", ubicacion, 16), ("C", "Procesos", 3), ("D", len(riesgo.get("procesos", [])), 16), ("F", "Controles", 3), ("G", residual.get("total_controles_evaluados", len(riesgo.get("controles", []))), 16)]))
 
-    filas.append(_excel_row(9, [("A", "Mapa de calor 5 x 5", 2)]))
-    filas.append(_excel_row(10, [("B", "1 Ins.", 3), ("C", "2 Men.", 3), ("D", "3 Mod.", 3), ("E", "4 May.", 3), ("F", "5 Cat.", 3)]))
+    filas.append(_excel_row(10, [("A", "Mapa de calor 5 x 5 y ubicación del riesgo", 2)]))
+    filas.append(_excel_row(11, [("A", "La celda marcada como R.I. muestra el punto exacto del riesgo evaluado.", 15)]))
+    filas.append(_excel_row(12, [("A", "Prob. \\ Impacto", 3), ("B", "1 Ins.", 3), ("C", "2 Men.", 3), ("D", "3 Mod.", 3), ("E", "4 May.", 3), ("F", "5 Cat.", 3), ("H", "Leyenda", 3)]))
     etiquetas_probabilidad = ["5 Casi seguro", "4 Probable", "3 Posible", "2 Improbable", "1 Raro"]
-    for indice_fila, probabilidad in enumerate(range(5, 0, -1), start=11):
-        celdas = [("A", etiquetas_probabilidad[indice_fila - 11], 3)]
+    for indice_fila, probabilidad in enumerate(range(5, 0, -1), start=13):
+        celdas = [("A", etiquetas_probabilidad[indice_fila - 13], 3)]
         for impacto in range(1, 6):
             puntaje = probabilidad * impacto
             nivel = _nivel_desde_puntaje(puntaje)
-            valor = f"{puntaje} R.I." if impacto == riesgo["impacto_valor"] and probabilidad == riesgo["probabilidad_valor"] else puntaje
-            celdas.append((chr(65 + impacto), valor, _nivel_estilo(nivel)))
+            es_riesgo = impacto == riesgo["impacto_valor"] and probabilidad == riesgo["probabilidad_valor"]
+            valor = f"R.I. {puntaje}" if es_riesgo else puntaje
+            estilo = _nivel_estilo_marcado(nivel) if es_riesgo else _nivel_estilo(nivel)
+            celdas.append((chr(65 + impacto), valor, estilo))
         filas.append(_excel_row(indice_fila, celdas))
+    filas.append(_excel_row(13, [("H", "Muy bajo = 1", 4)]))
+    filas.append(_excel_row(14, [("H", "Bajo = 2-4", 5)]))
+    filas.append(_excel_row(15, [("H", "Medio = 5-9", 6)]))
+    filas.append(_excel_row(16, [("H", "Alto = 10-16", 7)]))
+    filas.append(_excel_row(17, [("H", "Extremo = 17-25", 8)]))
+    filas.append(_excel_row(18, [("A", "Ubicación interpretada", 3), ("B", f"{probabilidad_texto} / {impacto_texto}", 16), ("D", "Nivel", 3), ("E", riesgo["nivel"], _nivel_estilo(riesgo["nivel"]))]))
 
-    filas.append(_excel_row(17, [("A", "Procesos y responsables", 2)]))
-    filas.append(_excel_row(18, [("A", "Proceso", 3), ("B", "Grupo", 3), ("C", "Responsables", 3)]))
-    fila_actual = 19
+    filas.append(_excel_row(20, [("A", "Procesos y responsables", 2)]))
+    filas.append(_excel_row(21, [("A", "Proceso", 3), ("B", "Grupo", 3), ("C", "Responsables", 3)]))
+    fila_actual = 22
     if riesgo["procesos"]:
         grupos = {grupo["id_grupo"]: grupo for grupo in riesgo["grupos"]}
         for proceso in riesgo["procesos"]:
@@ -438,65 +536,59 @@ def construir_excel_detalle_riesgo(riesgo):
         fila_actual += 1
 
     fila_actual += 1
-    merges.append(f"A{fila_actual}:F{fila_actual}")
+    merges.append(f"A{fila_actual}:H{fila_actual}")
+    filas.append(_excel_row(fila_actual, [("A", "Reporte de riesgo inherente", 2)]))
+    fila_actual += 1
+    filas.append(_excel_row(fila_actual, [("A", "Métrica", 3), ("B", "Valor", 3), ("C", "Detalle", 3)]))
+    fila_actual += 1
+    filas.extend([
+        _excel_row(fila_actual, [("A", "Probabilidad inicial", 0), ("B", inherente.get("probabilidad_inicial", residual.get("probabilidad_inicial", 0)), 16), ("C", inherente.get("probabilidad_categoria", "-"), 16)]),
+        _excel_row(fila_actual + 1, [("A", "Impacto inicial", 0), ("B", inherente.get("impacto_inicial", residual.get("impacto_inicial", 0)), 16), ("C", inherente.get("impacto_categoria", "-"), 16)]),
+        _excel_row(fila_actual + 2, [("A", "Riesgo inherente exacto", 0), ("B", inherente.get("riesgo_inherente_exacto", residual.get("riesgo_inherente", 0)), 16), ("C", "Probabilidad × Impacto / 100", 16)]),
+        _excel_row(fila_actual + 3, [("A", "Riesgo inherente categorizado", 0), ("B", inherente.get("riesgo_inherente_categorizado", residual.get("riesgo_inherente", 0)), 16), ("C", f"{inherente.get('probabilidad_categoria', '-')} / {inherente.get('impacto_categoria', '-')}", 16)]),
+        _excel_row(fila_actual + 4, [("A", "Nivel matriz 5x5", 0), ("B", inherente.get("nivel", riesgo.get("nivel", "-")), _nivel_estilo(riesgo.get("nivel", "")))]),
+    ])
+    fila_actual += 6
+
+    merges.append(f"A{fila_actual}:H{fila_actual}")
     filas.append(_excel_row(fila_actual, [("A", "Controles asociados", 2)]))
     fila_actual += 1
-    filas.append(_excel_row(fila_actual, [("A", "Control", 3), ("B", "Tipo", 3), ("C", "Solidez", 3), ("D", "Estado", 3), ("E", "Descripcion", 3)]))
+    filas.append(_excel_row(fila_actual, [("A", "Control", 3), ("B", "Tipo", 3), ("C", "Solidez", 3), ("D", "Máx. Prob./Imp.", 3), ("E", "Mit. Prob./Imp.", 3), ("F", "Estado", 3), ("G", "Descripción", 3)]))
     fila_actual += 1
     if riesgo["controles"]:
         for control in riesgo["controles"]:
-            filas.append(_excel_row(fila_actual, [
-                ("A", control["nombre"], 0),
-                ("B", control["tipo"], 0),
-                ("C", control["solidez_control"], 0),
-                ("D", control["estado"], 0),
-                ("E", control["descripcion"] or "Sin descripcion", 0),
-            ]))
+            filas.append(_excel_row(fila_actual, [("A", control["nombre"], 0), ("B", control["tipo"], 0), ("C", control["solidez_control"], 0), ("D", f"{control.get('maximo_baja_probabilidad', 100)} / {control.get('maximo_baja_impacto', 100)}", 0), ("E", f"{control.get('mitigacion_probabilidad', 0)} / {control.get('mitigacion_impacto', 0)}", 0), ("F", control["estado"], 0), ("G", control["descripcion"] or "Sin descripción", 0)]))
             fila_actual += 1
     else:
         filas.append(_excel_row(fila_actual, [("A", "Este riesgo aún no tiene controles asociados.", 0)]))
-
-    if not riesgo["controles"]:
         fila_actual += 1
 
-    residual = riesgo.get("riesgo_residual", {})
     fila_actual += 1
-    merges.append(f"A{fila_actual}:F{fila_actual}")
+    merges.append(f"A{fila_actual}:H{fila_actual}")
     filas.append(_excel_row(fila_actual, [("A", "Reporte de riesgo residual", 2)]))
     fila_actual += 1
     filas.append(_excel_row(fila_actual, [("A", "Métrica", 3), ("B", "Valor", 3), ("C", "Detalle", 3)]))
     fila_actual += 1
     filas.extend([
-        _excel_row(fila_actual, [("A", "Probabilidad inicial", 0), ("B", residual.get("probabilidad_inicial", 0), 0)]),
-        _excel_row(fila_actual + 1, [("A", "Impacto inicial", 0), ("B", residual.get("impacto_inicial", 0), 0)]),
-        _excel_row(fila_actual + 2, [("A", "Riesgo inherente", 0), ("B", residual.get("riesgo_inherente", 0), 0)]),
-        _excel_row(fila_actual + 3, [("A", "Controles evaluados", 0), ("B", residual.get("total_controles_evaluados", 0), 0)]),
-        _excel_row(fila_actual + 4, [("A", "Reducción promedio de probabilidad", 0), ("B", residual.get("reduccion_promedio_probabilidad", 0), 0)]),
-        _excel_row(fila_actual + 5, [("A", "Reducción promedio de impacto", 0), ("B", residual.get("reduccion_promedio_impacto", 0), 0)]),
-        _excel_row(fila_actual + 6, [("A", "Probabilidad residual", 0), ("B", residual.get("probabilidad_residual", 0), 0)]),
-        _excel_row(fila_actual + 7, [("A", "Impacto residual", 0), ("B", residual.get("impacto_residual", 0), 0)]),
-        _excel_row(fila_actual + 8, [("A", "Riesgo residual exacto", 0), ("B", residual.get("riesgo_residual_exacto", 0), 0)]),
-        _excel_row(fila_actual + 9, [("A", "Riesgo residual categorizado", 0), ("B", residual.get("riesgo_residual_categorizado", 0), 0), ("C", f"{residual.get('probabilidad_residual_categoria', '-')} / {residual.get('impacto_residual_categoria', '-')}", 0)]),
+        _excel_row(fila_actual, [("A", "Controles evaluados", 0), ("B", residual.get("total_controles_evaluados", 0), 16)]),
+        _excel_row(fila_actual + 1, [("A", "Reducción promedio de probabilidad", 0), ("B", residual.get("reduccion_promedio_probabilidad", 0), 16)]),
+        _excel_row(fila_actual + 2, [("A", "Reducción promedio de impacto", 0), ("B", residual.get("reduccion_promedio_impacto", 0), 16)]),
+        _excel_row(fila_actual + 3, [("A", "Probabilidad residual", 0), ("B", residual.get("probabilidad_residual", 0), 16), ("C", residual.get("probabilidad_residual_categoria", "-"), 16)]),
+        _excel_row(fila_actual + 4, [("A", "Impacto residual", 0), ("B", residual.get("impacto_residual", 0), 16), ("C", residual.get("impacto_residual_categoria", "-"), 16)]),
+        _excel_row(fila_actual + 5, [("A", "Riesgo residual exacto", 0), ("B", residual.get("riesgo_residual_exacto", 0), 16)]),
+        _excel_row(fila_actual + 6, [("A", "Riesgo residual categorizado", 0), ("B", residual.get("riesgo_residual_categorizado", 0), 16), ("C", f"{residual.get('probabilidad_residual_categoria', '-')} / {residual.get('impacto_residual_categoria', '-')}", 16)]),
     ])
-    fila_actual += 10
+    fila_actual += 8
 
-    fila_actual += 1
-    merges.append(f"A{fila_actual}:F{fila_actual}")
+    merges.append(f"A{fila_actual}:H{fila_actual}")
     filas.append(_excel_row(fila_actual, [("A", "Controles evaluados para residual", 2)]))
     fila_actual += 1
-    filas.append(_excel_row(fila_actual, [("A", "Control", 3), ("B", "Solidez", 3), ("C", "Mit. prob.", 3), ("D", "Mit. impacto", 3), ("E", "Red. prob.", 3), ("F", "Red. impacto", 3)]))
+    filas.append(_excel_row(fila_actual, [("A", "Control", 3), ("B", "Máx. prob/imp", 3), ("C", "Solidez aplicada", 3), ("D", "Mit. prob/imp", 3), ("E", "Red. prob.", 3), ("F", "Red. impacto", 3)]))
     fila_actual += 1
     controles_residual = residual.get("controles_evaluados", [])
     if controles_residual:
         for control in controles_residual:
-            filas.append(_excel_row(fila_actual, [
-                ("A", control.get("nombre", ""), 0),
-                ("B", f"{control.get('solidez', '')} ({control.get('solidez_valor', 0)})", 0),
-                ("C", control.get("mitigacion_probabilidad", 0), 0),
-                ("D", control.get("mitigacion_impacto", 0), 0),
-                ("E", control.get("reduccion_real_probabilidad", 0), 0),
-                ("F", control.get("reduccion_real_impacto", 0), 0),
-            ]))
+            filas.append(_excel_row(fila_actual, [("A", control.get("nombre", ""), 0), ("B", f"{control.get('maximo_baja_probabilidad', 0)} / {control.get('maximo_baja_impacto', 0)}", 0), ("C", f"{control.get('solidez', '')} ({control.get('solidez_valor', 0)}%) = {control.get('capacidad_real_probabilidad', 0)} / {control.get('capacidad_real_impacto', 0)}", 0), ("D", f"{control.get('mitigacion_probabilidad', 0)} / {control.get('mitigacion_impacto', 0)}", 0), ("E", control.get("reduccion_real_probabilidad", 0), 0), ("F", control.get("reduccion_real_impacto", 0), 0)]))
             fila_actual += 1
     else:
         filas.append(_excel_row(fila_actual, [("A", "Sin controles evaluados", 0)]))
@@ -504,20 +596,19 @@ def construir_excel_detalle_riesgo(riesgo):
     merges_xml = ''.join(f'<mergeCell ref="{merge}"/>' for merge in merges)
     hoja = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<cols><col min="1" max="1" width="22"/><col min="2" max="2" width="22"/><col min="3" max="3" width="22"/><col min="4" max="4" width="22"/><col min="5" max="5" width="18"/><col min="6" max="6" width="48"/></cols>
+<sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews>
+<cols><col min="1" max="1" width="24"/><col min="2" max="2" width="18"/><col min="3" max="3" width="18"/><col min="4" max="4" width="18"/><col min="5" max="5" width="18"/><col min="6" max="6" width="18"/><col min="7" max="7" width="28"/><col min="8" max="8" width="24"/></cols>
 <sheetData>{''.join(filas)}</sheetData>
 <mergeCells count="{len(merges)}">{merges_xml}</mergeCells>
 </worksheet>'''
-
     estilos = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="16"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts>
-<fills count="9"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF172033"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFD9EAD3"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF22C55E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFBBF24"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF97316"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEF4444"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF334155"/><bgColor indexed="64"/></patternFill></fill></fills>
-<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+<fonts count="5"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="18"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FF111827"/><name val="Calibri"/></font><font><i/><sz val="10"/><color rgb="FF64748B"/><name val="Calibri"/></font></fonts>
+<fills count="11"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF172033"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFD9EAD3"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF22C55E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFBBF24"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF97316"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEF4444"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF334155"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF8FAFC"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF7ED"/><bgColor indexed="64"/></patternFill></fill></fills>
+<borders count="3"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFE2E8F0"/></left><right style="thin"><color rgb="FFE2E8F0"/></right><top style="thin"><color rgb="FFE2E8F0"/></top><bottom style="thin"><color rgb="FFE2E8F0"/></bottom><diagonal/></border><border><left style="thick"><color rgb="FF111827"/></left><right style="thick"><color rgb="FF111827"/></right><top style="thick"><color rgb="FF111827"/></top><bottom style="thick"><color rgb="FF111827"/></bottom><diagonal/></border></borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="10"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFill="1" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="0" fontId="2" fillId="8" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="4" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="5" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="6" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="7" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="8" borderId="0" xfId="0" applyFill="1"/></cellXfs>
+<cellXfs count="17"><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="8" borderId="1" xfId="0" applyFill="1" applyBorder="1"/><xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="3" fillId="5" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="6" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="7" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="0" fillId="9" borderId="1" xfId="0" applyFill="1" applyBorder="1"/><xf numFmtId="0" fontId="3" fillId="3" borderId="2" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="4" borderId="2" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="3" fillId="5" borderId="2" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="6" borderId="2" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="7" borderId="2" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="0" fillId="10" borderId="1" xfId="0" applyFill="1" applyBorder="1"/></cellXfs>
 </styleSheet>'''
-
     archivos = {
         "[Content_Types].xml": '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>''',
         "_rels/.rels": '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>''',

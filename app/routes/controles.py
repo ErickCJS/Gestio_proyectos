@@ -17,8 +17,29 @@ def rutas(app, templates):
     solidez_opciones = {"Muy baja", "Baja", "Media", "Alta", "Muy alta"}
 
     def asegurar_tabla_control(db):
-        # No schema migration in application code; database schema must be managed externally.
-        return
+        columnas = {
+            "maximo_baja_probabilidad": "DECIMAL(5,2) NOT NULL DEFAULT 100",
+            "maximo_baja_impacto": "DECIMAL(5,2) NOT NULL DEFAULT 100",
+        }
+        with db.cursor() as cursor:
+            cursor.execute("""
+                SELECT COLUMN_NAME
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'control'
+            """)
+            existentes = {fila["COLUMN_NAME"] for fila in cursor.fetchall()}
+            for columna, definicion in columnas.items():
+                if columna not in existentes:
+                    cursor.execute(f"ALTER TABLE control ADD COLUMN {columna} {definicion}")
+        db.commit()
+
+    def porcentaje_formulario(valor, defecto=0):
+        try:
+            numero = float(valor if valor not in (None, "") else defecto)
+        except (TypeError, ValueError):
+            numero = defecto
+        return max(0, min(100, numero))
 
     def cargar_riesgos(db):
         with db.cursor() as cursor:
@@ -46,6 +67,8 @@ def rutas(app, templates):
                     c.estado,
                     c.fecha_creacion,
                     c.solidez_control,
+                    c.maximo_baja_probabilidad,
+                    c.maximo_baja_impacto,
                     c.mitigacion_probabilidad,
                     c.mitigacion_impacto,
                     r.nombre AS riesgo_nombre
@@ -87,6 +110,8 @@ def rutas(app, templates):
         descripcion = datos.get("descripcion", "").strip()
         tipo = datos.get("tipo", "").strip()
         solidez_control = datos.get("solidez_control", "Media").strip()
+        maximo_baja_probabilidad = datos.get("maximo_baja_probabilidad", "100").strip()
+        maximo_baja_impacto = datos.get("maximo_baja_impacto", "100").strip()
         mitigacion_probabilidad = datos.get("mitigacion_probabilidad", "0").strip()
         mitigacion_impacto = datos.get("mitigacion_impacto", "0").strip()
         id_riesgo = datos.get("id_riesgo", "").strip()
@@ -101,17 +126,10 @@ def rutas(app, templates):
             set_flash(request, "warning", "Seleccione valores válidos para el control.")
             return response
 
-        try:
-            mitigacion_probabilidad = int(mitigacion_probabilidad)
-        except ValueError:
-            mitigacion_probabilidad = 0
-        try:
-            mitigacion_impacto = int(mitigacion_impacto)
-        except ValueError:
-            mitigacion_impacto = 0
-
-        mitigacion_probabilidad = max(0, min(100, mitigacion_probabilidad))
-        mitigacion_impacto = max(0, min(100, mitigacion_impacto))
+        maximo_baja_probabilidad = porcentaje_formulario(maximo_baja_probabilidad, 100)
+        maximo_baja_impacto = porcentaje_formulario(maximo_baja_impacto, 100)
+        mitigacion_probabilidad = porcentaje_formulario(mitigacion_probabilidad, 0)
+        mitigacion_impacto = porcentaje_formulario(mitigacion_impacto, 0)
 
         db = conexion.conectar()
         if db == "":
@@ -127,17 +145,21 @@ def rutas(app, templates):
                     descripcion,
                     tipo,
                     solidez_control,
+                    maximo_baja_probabilidad,
+                    maximo_baja_impacto,
                     mitigacion_probabilidad,
                     mitigacion_impacto,
                     id_riesgo
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     nombre,
                     descripcion or None,
                     tipo,
                     solidez_control,
+                    maximo_baja_probabilidad,
+                    maximo_baja_impacto,
                     mitigacion_probabilidad,
                     mitigacion_impacto,
                     id_riesgo,
@@ -176,6 +198,8 @@ def rutas(app, templates):
         descripcion = datos.get('descripcion', '').strip()
         tipo = datos.get('tipo', '').strip()
         solidez_control = datos.get('solidez_control', 'Media').strip()
+        maximo_baja_probabilidad = datos.get('maximo_baja_probabilidad', '100').strip()
+        maximo_baja_impacto = datos.get('maximo_baja_impacto', '100').strip()
         mitigacion_probabilidad = datos.get('mitigacion_probabilidad', '0').strip()
         mitigacion_impacto = datos.get('mitigacion_impacto', '0').strip()
         id_riesgo = datos.get('id_riesgo', '').strip()
@@ -190,17 +214,10 @@ def rutas(app, templates):
             set_flash(request, 'warning', 'Seleccione valores válidos para el control.')
             return response
 
-        try:
-            mitigacion_probabilidad = int(mitigacion_probabilidad)
-        except ValueError:
-            mitigacion_probabilidad = 0
-        try:
-            mitigacion_impacto = int(mitigacion_impacto)
-        except ValueError:
-            mitigacion_impacto = 0
-
-        mitigacion_probabilidad = max(0, min(100, mitigacion_probabilidad))
-        mitigacion_impacto = max(0, min(100, mitigacion_impacto))
+        maximo_baja_probabilidad = porcentaje_formulario(maximo_baja_probabilidad, 100)
+        maximo_baja_impacto = porcentaje_formulario(maximo_baja_impacto, 100)
+        mitigacion_probabilidad = porcentaje_formulario(mitigacion_probabilidad, 0)
+        mitigacion_impacto = porcentaje_formulario(mitigacion_impacto, 0)
 
         db = conexion.conectar()
         if db == '':
@@ -211,10 +228,29 @@ def rutas(app, templates):
             cursor.execute(
                 """
                 UPDATE control
-                SET nombre=%s, descripcion=%s, tipo=%s, solidez_control=%s, mitigacion_probabilidad=%s, mitigacion_impacto=%s, id_riesgo=%s
+                SET nombre=%s,
+                    descripcion=%s,
+                    tipo=%s,
+                    solidez_control=%s,
+                    maximo_baja_probabilidad=%s,
+                    maximo_baja_impacto=%s,
+                    mitigacion_probabilidad=%s,
+                    mitigacion_impacto=%s,
+                    id_riesgo=%s
                 WHERE id_control=%s
                 """,
-                (nombre, descripcion or None, tipo, solidez_control, mitigacion_probabilidad, mitigacion_impacto, id_riesgo, id_control),
+                (
+                    nombre,
+                    descripcion or None,
+                    tipo,
+                    solidez_control,
+                    maximo_baja_probabilidad,
+                    maximo_baja_impacto,
+                    mitigacion_probabilidad,
+                    mitigacion_impacto,
+                    id_riesgo,
+                    id_control,
+                ),
             )
             db.commit()
 

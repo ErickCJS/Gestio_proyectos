@@ -25,8 +25,8 @@
                                 <th>Control</th>
                                 <th style="width:130px;">Tipo</th>
                                 <th>Solidez</th>
-                                <th class="text-center" style="width:130px;">Mitigación de la Probabilidad</th>
-                                <th class="text-center" style="width:130px;">Mitigación del Impacto</th>
+                                <th class="text-center" style="width:150px;">Máximo baja Prob./Imp.</th>
+                                <th class="text-center" style="width:150px;">Mitigación Prob./Imp.</th>
                                 <th style="width:120px;" class="text-center">Acciones</th>
                             </tr>
                         </thead>
@@ -41,6 +41,8 @@
                                     data-descripcion="{{ control.descripcion or '' }}"
                                     data-tipo="{{ control.tipo }}"
                                     data-solidez-control="{{ control.solidez_control }}"
+                                    data-maximo-baja-probabilidad="{{ control.maximo_baja_probabilidad or 100 }}"
+                                    data-maximo-baja-impacto="{{ control.maximo_baja_impacto or 100 }}"
                                     data-mitigacion-probabilidad="{{ control.mitigacion_probabilidad or 0 }}"
                                     data-mitigacion-impacto="{{ control.mitigacion_impacto or 0 }}"
                                     data-fecha-creacion="{{ control.fecha_creacion }}"
@@ -55,8 +57,8 @@
                                     </td>
                                     <td>{{ control.tipo }}</td>
                                     <td>{{ control.solidez_control }}</td>
-                                    <td class="text-center">{{ control.mitigacion_probabilidad or 0 }}%</td>
-                                    <td class="text-center">{{ control.mitigacion_impacto or 0 }}%</td>
+                                    <td class="text-center">{{ control.maximo_baja_probabilidad or 100 }}% / {{ control.maximo_baja_impacto or 100 }}%</td>
+                                    <td class="text-center">{{ control.mitigacion_probabilidad or 0 }}% / {{ control.mitigacion_impacto or 0 }}%</td>
                                     <td class="text-center">
                                         <div class="d-inline-flex gap-1 acciones">
                             
@@ -68,6 +70,8 @@
                                                 data-descripcion="{{ control.descripcion or '' }}"
                                                 data-tipo="{{ control.tipo }}"
                                                 data-solidez-control="{{ control.solidez_control }}"
+                                                data-maximo-baja-probabilidad="{{ control.maximo_baja_probabilidad or 100 }}"
+                                                data-maximo-baja-impacto="{{ control.maximo_baja_impacto or 100 }}"
                                                 data-mitigacion-probabilidad="{{ control.mitigacion_probabilidad or 0 }}"
                                                 data-mitigacion-impacto="{{ control.mitigacion_impacto or 0 }}"
                                                 data-id-riesgo="{{ control.id_riesgo if control.id_riesgo is defined else '' }}"
@@ -123,6 +127,14 @@
                                 <strong id="detalleControlSolidez">-</strong>
                             </div>
                             <div class="detalle-resumen-item">
+                                <span>Máximo baja probabilidad</span>
+                                <strong id="detalleControlMaximoProbabilidad">100%</strong>
+                            </div>
+                            <div class="detalle-resumen-item">
+                                <span>Máximo baja impacto</span>
+                                <strong id="detalleControlMaximoImpacto">100%</strong>
+                            </div>
+                            <div class="detalle-resumen-item">
                                 <span>Mitigación probabilidad</span>
                                 <strong id="detalleControlMitigacionProbabilidad">0%</strong>
                             </div>
@@ -174,6 +186,8 @@
                                 descripcion: botonAccion.dataset.descripcion || '',
                                 tipo: botonAccion.dataset.tipo || '',
                                 solidez_control: botonAccion.dataset.solidezControl || 'Media',
+                                maximo_baja_probabilidad: botonAccion.dataset.maximoBajaProbabilidad || '100',
+                                maximo_baja_impacto: botonAccion.dataset.maximoBajaImpacto || '100',
                                 mitigacion_probabilidad: botonAccion.dataset.mitigacionProbabilidad || '0',
                                 mitigacion_impacto: botonAccion.dataset.mitigacionImpacto || '0',
                                 id_riesgo: botonAccion.dataset.idRiesgo || '',
@@ -193,6 +207,8 @@
                             fila.dataset.descripcion || '',
                             fila.dataset.tipo || '',
                             fila.dataset.solidezControl || 'Media',
+                            fila.dataset.maximoBajaProbabilidad || '100',
+                            fila.dataset.maximoBajaImpacto || '100',
                             fila.dataset.mitigacionProbabilidad || '0',
                             fila.dataset.mitigacionImpacto || '0',
                             fila.dataset.riesgoNombre || '',

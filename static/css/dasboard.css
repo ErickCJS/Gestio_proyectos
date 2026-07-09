@@ -2696,3 +2696,11 @@
         flex-direction: column;
     }
 }
+
+.dash-inherent-panel {
+    margin: 0.9rem 0;
+    padding: 0.8rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 0.9rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}

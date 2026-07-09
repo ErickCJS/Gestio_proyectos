@@ -40,11 +40,13 @@ def rutas(app, templates):
             valores_impacto[impacto] *
             valores_probabilidad[probabilidad]
         )
-        if total <=4:
+        if total == 1:
+            return "MUY BAJO"
+        elif total <= 4:
             return "BAJO"
-        elif total<=9:
+        elif total <= 9:
             return "MEDIO"
-        elif total<=16:
+        elif total <= 16:
             return "ALTO"
         return "EXTREMO"
 
@@ -190,7 +192,7 @@ def rutas(app, templates):
                 nombre,
                 descripcion or None,
                 impacto,
-                probabilidad,
+                frecuencia,
                 nivel
             ))
 
@@ -219,6 +221,75 @@ def rutas(app, templates):
         )
         return response
 
+    # --------------------------------------------------
+    # EDITAR
+    # --------------------------------------------------
+
+    @app.post("/riesgo/{id}/editar")
+    async def editar_riesgo(
+        id:int,
+        request:Request
+    ):
+
+        datos=await request.form()
+        nombre=datos.get("nombre","").strip()
+        descripcion=datos.get("descripcion","").strip()
+        impacto=datos.get("impacto")
+        probabilidad=datos.get("probabilidad", datos.get("frecuencia"))
+        response=RedirectResponse(
+            "/riesgo",
+            status_code=303
+        )
+
+        if nombre=="":
+            set_flash(
+                request,
+                "warning",
+                "Ingrese nombre."
+            )
+            return response
+
+        db=conexion.conectar()
+
+        if db=="":
+            set_flash(
+                request,
+                "danger",
+                "No se pudo conectar."
+            )
+            return response
+
+        nivel=calcular_nivel(
+            impacto,
+            probabilidad
+        )
+
+        with db.cursor() as cursor:
+            cursor.execute("""
+            UPDATE riesgo
+            SET nombre=%s,
+                descripcion=%s,
+                impacto=%s,
+                frecuencia=%s,
+                nivel=%s
+            WHERE id_riesgo=%s
+            """,(
+                nombre,
+                descripcion or None,
+                impacto,
+                frecuencia,
+                nivel,
+                id
+            ))
+            db.commit()
+        db.close()
+
+        set_flash(
+            request,
+            "success",
+            "Riesgo actualizado."
+        )
+        return response
     # --------------------------------------------------
     # ELIMINAR
     # --------------------------------------------------
@@ -253,32 +324,12 @@ def rutas(app, templates):
             if resultado["total"] > 0:
 
                 db.close()
-                return JSONResponse(
-                    {
-                        "ok": False,
-                        "mensaje": "No se puede eliminar el riesgo porque tiene procesos asociados."
-                    },
-                    status_code=400
+                set_flash(
+                    request,
+                    "warning",
+                    "No se puede eliminar el riesgo porque tiene procesos asociados."
                 )
-            
-            cursor.execute("""
-                SELECT COUNT(*) AS total
-                FROM control
-                WHERE id_riesgo = %s
-            """, (id,))
-
-            resultado = cursor.fetchone()
-
-            if resultado["total"] > 0:
-                db.close()
-                return JSONResponse(
-                    {
-                        "ok": False,
-                        "mensaje": "No se puede eliminar el riesgo porque tiene controles asociados."
-                    },
-                    status_code=400
-                )
-
+                return response
             # Si no tiene procesos, eliminar el riesgo
             cursor.execute("""
             DELETE
@@ -288,12 +339,12 @@ def rutas(app, templates):
             db.commit()
         db.close()
 
-        from fastapi.responses import JSONResponse
-
-        return JSONResponse({
-            "ok": True,
-            "mensaje": "Riesgo eliminado correctamente."
-        })
+        set_flash(
+            request,
+            "success",
+            "Riesgo eliminado."
+        )
+        return response
 
 
     # --------------------------------------------------

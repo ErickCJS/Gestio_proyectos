@@ -22,33 +22,10 @@
 
     <div class="col-xl-9">
         <div class="tabla-panel">
-            <div class="px-4 pt-3 pb-2 mt-2 d-flex flex-wrap justify-content-between align-items-center gap-3 riesgo-toolbar">
-   
-                <div class="d-flex flex-wrap align-items-center gap-2 ">
-                    <label class="d-inline-flex align-items-center gap-2 small text-secondary mb-0">
-                        <input type="checkbox" id="seleccionarTodosRiesgos" class="form-check-input m-0" onchange="toggleSeleccionarTodosRiesgos(this.checked)">
-                        Marcar todo
-                    </label>
-                    <select id="formatoExportacionRiesgos" class="form-select form-select-sm" style="width:auto;min-width:130px;">
-                        <option value="excel">Excel</option>
-                        <option value="pdf">PDF</option>
-                        <option value="imagen">Imagen</option>
-                    </select>
-                    <button type="button" class="btn btn-sm btn_primario" onclick="exportarRiesgosSeleccionados()">
-                        <i class="bi bi-download me-2"></i>
-                        Exportar
-                    </button>
-                    <small id="contadorRiesgosSeleccionados" class="text-secondary">0 seleccionados</small>
-                </div>
-            </div>
-
             <div class="tabla-scroll table-responsive tabla-wrap">
                 <table class="table table-hover align-middle" id="tablaRiesgos">
                     <thead>
                         <tr>
-                            <th style="width:42px" class="text-center">
-                                <input type="checkbox" id="seleccionarTodosRiesgosHeader" class="form-check-input m-0" onchange="toggleSeleccionarTodosRiesgos(this.checked)">
-                            </th>
                             <th style="width:90px">
                                 Código
                             </th>
@@ -64,7 +41,7 @@
                             <th style="width:120px" class="text-center">
                                 Nivel de riesgo
                             </th>
-                            <th class="text-center" style="width:120px">
+                            <th class="text-center" style="width:150px">
                                 Acciones
                             </th>
                         </tr>
@@ -77,9 +54,6 @@
 
                         <tr class="fila-riesgo" onclick="seleccionarFila(this);mostrarDetalle( '{{ riesgo.nombre }}', 'RSK-{{ '%03d'|format(riesgo.id_riesgo) }}', '{{ riesgo.descripcion }}', '{{ riesgo.impacto }}',
                             '{{ riesgo.probabilidad }}', '{{ riesgo.nivel }}' )" style="cursor:pointer;">
-                            <td class="text-center">
-                                <input type="checkbox" class="form-check-input riesgo-export-check m-0" onclick="event.stopPropagation(); actualizarContadorRiesgosSeleccionados()">
-                            </td>
                             <td>
                                 RSK-{{ "%03d"|format(riesgo.id_riesgo) }}
                             </td>
@@ -98,7 +72,11 @@
                                 {{ riesgo.impacto }}
                             </td>
                             <td class="text-center">
-                                {% if riesgo.nivel=="BAJO" %}
+                                {% if riesgo.nivel=="MUY BAJO" %}
+                                <span class="badge nivel-riesgo-badge nivel-muy-bajo">
+                                    Muy bajo
+                                </span>
+                                {% elif riesgo.nivel=="BAJO" %}
                                 <span class="badge nivel-riesgo-badge nivel-bajo">
                                     Bajo
                                 </span>
@@ -123,6 +101,15 @@
                                         onclick="event.stopPropagation();verProcesos({{ riesgo.id_riesgo }})">
                                         <i class="bi bi-diagram-3 text-primary"></i>
                                     </button>
+                                    <button class="btn btn-sm btn-outline-secondary"
+                                        data-id-riesgo="{{ riesgo.id_riesgo }}"
+                                        data-nombre="{{ (riesgo.nombre or '')|e }}"
+                                        data-descripcion="{{ (riesgo.descripcion or '')|e }}"
+                                        data-impacto="{{ riesgo.impacto }}"
+                                        data-probabilidad="{{ riesgo.probabilidad }}"
+                                        onclick="event.stopPropagation();abrirEditarRiesgo(this)">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
                                     <button class="btn btn-sm btn-outline-danger"
                                         onclick="event.stopPropagation();eliminarRiesgo({{ riesgo.id_riesgo }})">
                                         <i class="bi bi-trash2-fill text-danger"></i>
@@ -135,7 +122,7 @@
                         {% else %}
 
                         <tr>
-                            <td colspan="7" class="text-center py-5 text-secondary">
+                            <td colspan="6" class="text-center py-5 text-secondary">
                                 No existen riesgos registrados.
                             </td>
                         </tr>
@@ -217,19 +204,19 @@
                         <div class="riesgo-heatmap-content">
                             <div class="riesgo-heatmap-xlabels">
                                 <div></div>
-                                <div>Ins.</div>
-                                <div>Men.</div>
-                                <div>Mod.</div>
-                                <div>May.</div>
-                                <div>Cat.</div>
+                                <div>1<br><span>Ins.</span></div>
+                                <div>2<br><span>Men.</span></div>
+                                <div>3<br><span>Mod.</span></div>
+                                <div>4<br><span>May.</span></div>
+                                <div>5<br><span>Cat.</span></div>
                             </div>
                             <div class="riesgo-heatmap-grid-wrap">
                                 <div class="riesgo-heatmap-ylabels">
-                                    <div>Rar.</div>
-                                    <div>Imp.</div>
-                                    <div>Pos.</div>
-                                    <div>Prob.</div>
-                                    <div>C.S.</div>
+                                    <div>5<br><span>C.S.</span></div>
+                                    <div>4<br><span>Prob.</span></div>
+                                    <div>3<br><span>Pos.</span></div>
+                                    <div>2<br><span>Imp.</span></div>
+                                    <div>1<br><span>Rar.</span></div>
                                 </div>
 
                                 <div class="riesgo-heatmap-grid" id="mapaRiesgoVisual">
@@ -237,14 +224,16 @@
                                     {% for columna in range(5) %}
 
                                     {% set colores = [
-                                    ["#fbbf24","#f97316","#f97316","#ef4444","#ef4444"],
-                                    ["#22c55e","#fbbf24","#f97316","#f97316","#ef4444"],
-                                    ["#22c55e","#fbbf24","#fbbf24","#f97316","#f97316"],
-                                    ["#22c55e","#22c55e","#fbbf24","#fbbf24","#f97316"],
-                                    ["#abf2c5","#22c55e","#22c55e","#22c55e","#fbbf24"]
+                                    ['#fbbf24','#f97316','#f97316','#ef4444','#ef4444'],
+                                    ['#22c55e','#fbbf24','#f97316','#f97316','#ef4444'],
+                                    ['#22c55e','#fbbf24','#fbbf24','#f97316','#f97316'],
+                                    ['#22c55e','#22c55e','#fbbf24','#fbbf24','#f97316'],
+                                    ['#d9ead3','#22c55e','#22c55e','#22c55e','#fbbf24']
                                     ] %}
+                                    {% set color_celda = colores[fila][columna] %}
 
-                                    <div class="riesgo-heatmap-cell" style="background:{{ colores[fila][columna] }};">
+                                    <div class="riesgo-heatmap-cell" style="background:{{ color_celda }}; color:{% if color_celda in ['#d9ead3', '#fbbf24'] %}#111827{% else %}#ffffff{% endif %};">
+                                        {{ (5 - fila) * (columna + 1) }}
                                     </div>
 
                                     {% endfor %}
@@ -265,39 +254,11 @@
 </div>
 
 {% if flash %}
-    <div id="flashMensaje" class="app-flash app-flash-{{ flash.tipo }}">
-        <div class="flash-icono">
-            {% if flash.tipo=="success" %}
-                <i class="bi bi-check-circle-fill"></i>
-            {% elif flash.tipo=="danger" %}
-                <i class="bi bi-x-circle-fill"></i>
-            {% elif flash.tipo=="warning" %}
-                <i class="bi bi-exclamation-triangle-fill"></i>
-            {% else %}
-                <i class="bi bi-info-circle-fill"></i>
-            {% endif %}
-        </div>
-        <div class="flash-texto">
-            {{ flash.texto }}
-        </div>
-    </div>
-<script>
-    window.addEventListener("load",()=>{
-        const flash=document.getElementById("flashMensaje");
-        if(!flash) return;
-        setTimeout(()=>{
-            flash.classList.add("mostrar");
-        },100);
-        setTimeout(()=>{
-            flash.classList.remove("mostrar");
-            setTimeout(()=>{
-                flash.remove();
-            },400);
-        },3500);
-    });
-</script>
-
-
+    <script>
+        document.addEventListener('DOMContentLoaded', function(){
+            mostrar_mensaje_modal({{ flash.texto | tojson }}, {{ flash.tipo | tojson }});
+        });
+    </script>
 {% endif %}
 
 <script>
@@ -318,15 +279,15 @@
         const badge = document.getElementById("detalleNivel");
         badge.className = "badge nivel-riesgo-badge";
         badge.style.minWidth = "96px";
-        const color = window.obtenerColorNivelRiesgo
-            ? window.obtenerColorNivelRiesgo(nivel)
-            : null;
+        const color = window.obtenerColorRiesgoMapa
+            ? window.obtenerColorRiesgoMapa(impacto, probabilidad)
+            : (window.obtenerColorNivelRiesgo ? window.obtenerColorNivelRiesgo(nivel) : null);
 
         badge.innerHTML = nivel;
         if (color) {
             badge.style.background = color;
             badge.style.borderColor = color;
-            badge.style.color = (nivel === "BAJO" || nivel === "MEDIO")
+            badge.style.color = (color === "#d9ead3" || color === "#fbbf24")
                 ? "#111827"
                 : "#ffffff";
         }
@@ -357,7 +318,7 @@
             ["#22c55e","#fbbf24","#f97316","#f97316","#ef4444"],
             ["#22c55e","#fbbf24","#fbbf24","#f97316","#f97316"],
             ["#22c55e","#22c55e","#fbbf24","#fbbf24","#f97316"],
-            ["#abf2c5","#22c55e","#22c55e","#22c55e","#fbbf24"]
+            ["#d9ead3","#22c55e","#22c55e","#22c55e","#fbbf24"]
         ];
 
         const x = impactos[impacto];
@@ -369,9 +330,11 @@
         }
 
         punto.style.display = "flex";
-        punto.style.left = (x * 42 + 3) + "px";
-        punto.style.top = (y * 42 + 3) + "px";
-        punto.style.background = colores[y][x];
+        punto.style.left = (x * 34 + 3) + "px";
+        punto.style.top = (y * 34 + 3) + "px";
+        const colorMapa = colores[y][x];
+        punto.style.background = colorMapa;
+        punto.style.color = (colorMapa === "#d9ead3" || colorMapa === "#fbbf24") ? "#111827" : "#ffffff";
 
     }
 
@@ -401,319 +364,4 @@
 
 </script>
 
-{% endblock %}
-
-{% block scripts %}
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script>
-        function obtenerFilasRiesgoSeleccionadas() {
-            return Array.from(document.querySelectorAll('.riesgo-export-check:checked'))
-                .map((checkbox) => checkbox.closest('tr'))
-                .filter(Boolean);
-        }
-
-        function actualizarContadorRiesgosSeleccionados() {
-            const total = document.querySelectorAll('.riesgo-export-check').length;
-            const seleccionados = document.querySelectorAll('.riesgo-export-check:checked').length;
-            const contador = document.getElementById('contadorRiesgosSeleccionados');
-            const seleccionarTodos = document.getElementById('seleccionarTodosRiesgos');
-            const seleccionarTodosHeader = document.getElementById('seleccionarTodosRiesgosHeader');
-
-            if (contador) {
-                contador.textContent = `${seleccionados} seleccionados`;
-            }
-
-            const todosMarcados = total > 0 && seleccionados === total;
-            const ningunoMarcado = seleccionados === 0;
-
-            if (seleccionarTodos) {
-                seleccionarTodos.checked = todosMarcados;
-                seleccionarTodos.indeterminate = !todosMarcados && !ningunoMarcado;
-            }
-
-            if (seleccionarTodosHeader) {
-                seleccionarTodosHeader.checked = todosMarcados;
-                seleccionarTodosHeader.indeterminate = !todosMarcados && !ningunoMarcado;
-            }
-        }
-
-        function toggleSeleccionarTodosRiesgos(marcado) {
-            document.querySelectorAll('.riesgo-export-check').forEach((checkbox) => {
-                checkbox.checked = marcado;
-            });
-            actualizarContadorRiesgosSeleccionados();
-        }
-
-        function formatearTextoExportacion(valor) {
-            return (valor ?? '').toString().replace(/\s+/g, ' ').trim();
-        }
-
-        function normalizarTexto(texto) {
-            return formatearTextoExportacion(texto).toUpperCase().replace(/\./g, '');
-        }
-
-        function valorImpactoDesdeTexto(texto) {
-            const valor = normalizarTexto(texto);
-            const mapa = {
-                INSIGNIFICANTE: 1,
-                MENOR: 2,
-                MODERADO: 3,
-                MAYOR: 4,
-                CATASTROFICO: 5
-            };
-            return mapa[valor] || 0;
-        }
-
-        function valorProbabilidadDesdeTexto(texto) {
-            const valor = normalizarTexto(texto);
-            const mapa = {
-                RARA: 1,
-                IMPROBABLE: 2,
-                POSIBLE: 3,
-                PROBABLE: 4,
-                CASISEGURO: 5
-            };
-            return mapa[valor.replace(/\s+/g, '')] || 0;
-        }
-
-        function obtenerDatosRiesgosSeleccionados() {
-            return obtenerFilasRiesgoSeleccionadas().map((fila) => {
-                const celdas = fila.querySelectorAll('td');
-                return {
-                    codigo: formatearTextoExportacion(celdas[1]?.innerText),
-                    riesgo: formatearTextoExportacion(celdas[2]?.innerText),
-                    impacto: formatearTextoExportacion(celdas[3]?.innerText),
-                    probabilidad: formatearTextoExportacion(celdas[4]?.innerText),
-                    nivel: formatearTextoExportacion(celdas[5]?.innerText)
-                };
-            });
-        }
-
-        function construirMatrizCalor(datos) {
-            const matriz = Array.from({ length: 5 }, () => Array(5).fill(0));
-            datos.forEach((item) => {
-                const impacto = valorImpactoDesdeTexto(item.impacto);
-                const probabilidad = valorProbabilidadDesdeTexto(item.probabilidad);
-                if (!impacto || !probabilidad) {
-                    return;
-                }
-                const x = impacto - 1;
-                const y = 5 - probabilidad;
-                matriz[y][x] += 1;
-            });
-            return matriz;
-        }
-
-        function construirMapaExportacion(datos) {
-            const matriz = construirMatrizCalor(datos);
-            const envoltorio = document.createElement('div');
-            envoltorio.style.position = 'fixed';
-            envoltorio.style.left = '-10000px';
-            envoltorio.style.top = '0';
-            envoltorio.style.background = '#FFFFFF';
-            envoltorio.style.padding = '20px';
-            envoltorio.style.width = '980px';
-            envoltorio.style.fontFamily = 'Inter, Arial, sans-serif';
-            envoltorio.innerHTML = `
-                <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #E2E8F0;">
-                    <div>
-                        <h3 style="margin:0;font-size:22px;line-height:1.2;color:#0F172A;">Riesgos seleccionados</h3>
-                        <div style="margin-top:6px;color:#64748B;font-size:12px;">Exportación generada desde MAGERISK</div>
-                    </div>
-                    <div style="text-align:right;color:#475569;font-size:12px;font-weight:700;">
-                        ${datos.length} riesgo(s) seleccionados
-                    </div>
-                </div>
-                <div style="display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start;margin-bottom:18px;">
-                    <div style="padding:14px;border:1px solid #E2E8F0;border-radius:18px;background:linear-gradient(180deg,#FFFFFF 0%,#F8FAFC 100%);box-shadow:0 10px 24px rgba(15,23,42,0.05);">
-                        <div style="font-size:12px;font-weight:800;color:#334155;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.05em;">Mapa de calor</div>
-                        <div style="display:grid;grid-template-columns:48px 1fr;gap:8px;align-items:start;">
-                            <div style="display:flex;align-items:center;justify-content:center;min-height:218px;">
-                                <div style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:10px;font-weight:800;color:#334155;letter-spacing:0.08em;text-transform:uppercase;">
-                                    Probabilidad
-                                </div>
-                            </div>
-                            <div>
-                                <div style="display:grid;grid-template-columns:repeat(5,40px);gap:2px;margin-bottom:6px;">
-                                    <div style="text-align:center;font-size:10px;font-weight:800;color:#64748B;">I</div>
-                                    <div style="text-align:center;font-size:10px;font-weight:800;color:#64748B;">M</div>
-                                    <div style="text-align:center;font-size:10px;font-weight:800;color:#64748B;">Mo</div>
-                                    <div style="text-align:center;font-size:10px;font-weight:800;color:#64748B;">Ma</div>
-                                    <div style="text-align:center;font-size:10px;font-weight:800;color:#64748B;">C</div>
-                                </div>
-                                <div style="display:grid;grid-template-columns:48px 1fr;gap:6px;align-items:start;">
-                                    <div style="display:flex;flex-direction:column;gap:2px;">
-                                        <div style="height:40px;display:flex;align-items:center;justify-content:flex-end;padding-right:2px;font-size:10px;font-weight:800;color:#64748B;">Rar.</div>
-                                        <div style="height:40px;display:flex;align-items:center;justify-content:flex-end;padding-right:2px;font-size:10px;font-weight:800;color:#64748B;">Imp.</div>
-                                        <div style="height:40px;display:flex;align-items:center;justify-content:flex-end;padding-right:2px;font-size:10px;font-weight:800;color:#64748B;">Pos.</div>
-                                        <div style="height:40px;display:flex;align-items:center;justify-content:flex-end;padding-right:2px;font-size:10px;font-weight:800;color:#64748B;">Prob.</div>
-                                        <div style="height:40px;display:flex;align-items:center;justify-content:flex-end;padding-right:2px;font-size:10px;font-weight:800;color:#64748B;">C.S.</div>
-                                    </div>
-                                    <div style="display:grid;grid-template-columns:repeat(5,40px);grid-template-rows:repeat(5,40px);gap:2px;padding:2px;border-radius:14px;background:#FFFFFF;box-shadow:inset 0 1px 2px rgba(15,23,42,0.05);">
-                                    ${matriz.map((fila, y) => fila.map((valor, x) => {
-                                        const colores = [
-                                            ["#fbbf24","#f97316","#f97316","#ef4444","#ef4444"],
-                                            ["#22c55e","#fbbf24","#f97316","#f97316","#ef4444"],
-                                            ["#22c55e","#fbbf24","#fbbf24","#f97316","#f97316"],
-                                            ["#22c55e","#22c55e","#fbbf24","#fbbf24","#f97316"],
-                                            ["#abf2c5","#22c55e","#22c55e","#22c55e","#fbbf24"]
-                                        ];
-                                        return `
-                                            <div style="width:40px;height:40px;border-radius:6px;background:${colores[y][x]};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#FFFFFF;box-shadow:inset 0 -1px 0 rgba(255,255,255,0.18);">
-                                                ${valor || ''}
-                                            </div>
-                                        `;
-                                    }).join('')).join('')}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div style="min-width:0;">
-                        <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;">
-                    <thead>
-                        <tr>
-                            <th style="border:1px solid #CBD5E1;padding:7px 8px;text-align:left;background:#F8FAFC;width:92px;">Código</th>
-                            <th style="border:1px solid #CBD5E1;padding:7px 8px;text-align:left;background:#F8FAFC;">Riesgo</th>
-                            <th style="border:1px solid #CBD5E1;padding:7px 8px;text-align:left;background:#F8FAFC;width:95px;">Impacto</th>
-                            <th style="border:1px solid #CBD5E1;padding:7px 8px;text-align:left;background:#F8FAFC;width:95px;">Probabilidad</th>
-                            <th style="border:1px solid #CBD5E1;padding:7px 8px;text-align:left;background:#F8FAFC;width:110px;">Nivel</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${datos.map((item) => `
-                            <tr>
-                                <td style="border:1px solid #CBD5E1;padding:7px 8px;word-break:break-word;">${item.codigo}</td>
-                                <td style="border:1px solid #CBD5E1;padding:7px 8px;word-break:break-word;">${item.riesgo}</td>
-                                <td style="border:1px solid #CBD5E1;padding:7px 8px;">${item.impacto}</td>
-                                <td style="border:1px solid #CBD5E1;padding:7px 8px;">${item.probabilidad}</td>
-                                <td style="border:1px solid #CBD5E1;padding:7px 8px;font-weight:700;">${item.nivel}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(envoltorio);
-            return envoltorio;
-        }
-
-        function descargarArchivo(blob, nombre) {
-            const url = URL.createObjectURL(blob);
-            const enlace = document.createElement('a');
-            enlace.href = url;
-            enlace.download = nombre;
-            document.body.appendChild(enlace);
-            enlace.click();
-            enlace.remove();
-            URL.revokeObjectURL(url);
-        }
-
-        async function exportarRiesgosExcel(datos) {
-            const hoja = XLSX.utils.json_to_sheet(datos);
-            const libro = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(libro, hoja, 'Riesgos');
-            const matriz = construirMatrizCalor(datos);
-            const hojaMapa = XLSX.utils.aoa_to_sheet([
-                ['Probabilidad / Impacto', 'Insignificante', 'Menor', 'Moderado', 'Mayor', 'Catastrófico'],
-                ['Rara', matriz[4][0], matriz[4][1], matriz[4][2], matriz[4][3], matriz[4][4]],
-                ['Improbable', matriz[3][0], matriz[3][1], matriz[3][2], matriz[3][3], matriz[3][4]],
-                ['Posible', matriz[2][0], matriz[2][1], matriz[2][2], matriz[2][3], matriz[2][4]],
-                ['Probable', matriz[1][0], matriz[1][1], matriz[1][2], matriz[1][3], matriz[1][4]],
-                ['Casi seguro', matriz[0][0], matriz[0][1], matriz[0][2], matriz[0][3], matriz[0][4]]
-            ]);
-            XLSX.utils.book_append_sheet(libro, hojaMapa, 'Mapa calor');
-            const fecha = new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(libro, `riesgos_${fecha}.xlsx`);
-        }
-
-        async function exportarRiesgosImagen(datos) {
-            const contenedor = construirMapaExportacion(datos);
-            const canvas = await html2canvas(contenedor, {
-                backgroundColor: '#FFFFFF',
-                scale: 2
-            });
-            const fecha = new Date().toISOString().slice(0, 10);
-            canvas.toBlob((blob) => {
-                if (blob) {
-                    descargarArchivo(blob, `riesgos_${fecha}.png`);
-                }
-                contenedor.remove();
-            }, 'image/png');
-        }
-
-        async function exportarRiesgosPdf(datos) {
-            const contenedor = construirMapaExportacion(datos);
-            const canvas = await html2canvas(contenedor, {
-                backgroundColor: '#FFFFFF',
-                scale: 2
-            });
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('landscape', 'pt', 'a4');
-            const margen = 24;
-            const pageWidth = pdf.internal.pageSize.getWidth() - (margen * 2);
-            const pageHeight = pdf.internal.pageSize.getHeight() - (margen * 2);
-            const sliceHeight = Math.floor((pageHeight * canvas.width) / pageWidth);
-            let sourceY = 0;
-            let pagina = 0;
-
-            while (sourceY < canvas.height) {
-                const sliceCanvas = document.createElement('canvas');
-                sliceCanvas.width = canvas.width;
-                sliceCanvas.height = Math.min(sliceHeight, canvas.height - sourceY);
-                const ctx = sliceCanvas.getContext('2d');
-                ctx.drawImage(
-                    canvas,
-                    0, sourceY, canvas.width, sliceCanvas.height,
-                    0, 0, canvas.width, sliceCanvas.height
-                );
-                const imgData = sliceCanvas.toDataURL('image/png');
-                const renderHeight = (sliceCanvas.height * pageWidth) / sliceCanvas.width;
-
-                if (pagina > 0) {
-                    pdf.addPage();
-                }
-
-                pdf.addImage(imgData, 'PNG', margen, margen, pageWidth, renderHeight);
-                sourceY += sliceCanvas.height;
-                pagina += 1;
-            }
-
-            const fecha = new Date().toISOString().slice(0, 10);
-            pdf.save(`riesgos_${fecha}.pdf`);
-            contenedor.remove();
-        }
-
-        async function exportarRiesgosSeleccionados() {
-            const datos = obtenerDatosRiesgosSeleccionados();
-            if (!datos.length) {
-                alert('Seleccione al menos un riesgo para exportar.');
-                return;
-            }
-
-            const formato = document.getElementById('formatoExportacionRiesgos')?.value || 'excel';
-
-            if (formato === 'pdf') {
-                await exportarRiesgosPdf(datos);
-                return;
-            }
-
-            if (formato === 'imagen') {
-                await exportarRiesgosImagen(datos);
-                return;
-            }
-
-            await exportarRiesgosExcel(datos);
-        }
-
-        window.toggleSeleccionarTodosRiesgos = toggleSeleccionarTodosRiesgos;
-        window.actualizarContadorRiesgosSeleccionados = actualizarContadorRiesgosSeleccionados;
-        window.exportarRiesgosSeleccionados = exportarRiesgosSeleccionados;
-
-        window.addEventListener('load', actualizarContadorRiesgosSeleccionados);
-          
-    </script>
 {% endblock %}

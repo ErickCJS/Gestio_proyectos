@@ -40,6 +40,107 @@ const cerrar_sider = () => {
     accion_estado();
 }
 
+function escaparHtmlRiesgo(valor) {
+    return String(valor ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function opcionRiesgo(actual, valor, texto) {
+    return `<option value="${valor}" ${actual === valor ? 'selected' : ''}>${texto}</option>`;
+}
+
+function construirFormularioRiesgo(config = {}) {
+    const formId = config.formId || 'frm_crearriesgo';
+    const action = config.action || '/crear_riesgo';
+    const nombre = escaparHtmlRiesgo(config.nombre || '');
+    const descripcion = escaparHtmlRiesgo(config.descripcion || '');
+    const impacto = config.impacto || 'INSIGNIFICANTE';
+    const probabilidad = config.probabilidad || 'RARA';
+
+    return `
+        <form id="${formId}" method="post" action="${action}">
+            <div class="row g-4 align-items-start">
+                <div class="col-lg-6">
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Nombre del riesgo</label>
+                        <input type="text" name="nombre" class="form-control" value="${nombre}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Descripción</label>
+                        <textarea name="descripcion" rows="3" class="form-control">${descripcion}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Impacto</label>
+                        <select id="impacto" name="impacto" class="form-select" onchange="actualizarMapaRiesgo()">
+                            ${opcionRiesgo(impacto, 'INSIGNIFICANTE', 'Insignificante')}
+                            ${opcionRiesgo(impacto, 'MENOR', 'Menor')}
+                            ${opcionRiesgo(impacto, 'MODERADO', 'Moderado')}
+                            ${opcionRiesgo(impacto, 'MAYOR', 'Mayor')}
+                            ${opcionRiesgo(impacto, 'CATASTROFICO', 'Catastrófico')}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Probabilidad</label>
+                        <select id="probabilidad" name="probabilidad" class="form-select" onchange="actualizarMapaRiesgo()">
+                            ${opcionRiesgo(probabilidad, 'RARA', 'Rara')}
+                            ${opcionRiesgo(probabilidad, 'IMPROBABLE', 'Improbable')}
+                            ${opcionRiesgo(probabilidad, 'POSIBLE', 'Posible')}
+                            ${opcionRiesgo(probabilidad, 'PROBABLE', 'Probable')}
+                            ${opcionRiesgo(probabilidad, 'CASI_SEGURO', 'Casi seguro')}
+                        </select>
+                    </div>
+                    <div class="mt-4">
+                        <label class="form-label modal-label">Nivel calculado</label>
+                        <div id="nivelCalculado" class="badge fs-6">MUY BAJO</div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="riesgo-modal-title">Matriz de riesgos 5x5</div>
+                    <div class="riesgo-modal-note">Puntaje = Probabilidad x Impacto. El valor 16 se clasifica como Alto. Extremo inicia en 17.</div>
+                    <div class="riesgo-modal-impact-title">Impacto</div>
+                    <div class="riesgo-modal-matrix">
+                        <div class="riesgo-modal-axis">Probabilidad</div>
+                        <div class="riesgo-modal-matrix-content">
+                            <div class="riesgo-modal-xlabels">
+                                <div>1<br><span>Ins.</span></div>
+                                <div>2<br><span>Men.</span></div>
+                                <div>3<br><span>Mod.</span></div>
+                                <div>4<br><span>May.</span></div>
+                                <div>5<br><span>Cat.</span></div>
+                            </div>
+                            <div class="riesgo-modal-grid-row">
+                                <div class="riesgo-modal-ylabels">
+                                    <div>5<br><span>C.S.</span></div>
+                                    <div>4<br><span>Prob.</span></div>
+                                    <div>3<br><span>Pos.</span></div>
+                                    <div>2<br><span>Imp.</span></div>
+                                    <div>1<br><span>Rar.</span></div>
+                                </div>
+                                <div class="riesgo-modal-grid-wrap">
+                                    <div id="mapaRiesgoModal" class="riesgo-modal-grid">
+                                        ${crearMapaModal()}
+                                    </div>
+                                    <div id="marcadorModal" class="riesgo-modal-marker">R.I.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="riesgo-modal-legend">
+                        <span><i style="background:#d9ead3"></i>Muy bajo 1</span>
+                        <span><i style="background:#22c55e"></i>Bajo 2-4</span>
+                        <span><i style="background:#fbbf24"></i>Medio 5-9</span>
+                        <span><i style="background:#f97316"></i>Alto 10-16</span>
+                        <span><i style="background:#ef4444"></i>Extremo 17-25</span>
+                    </div>
+                </div>
+            </div>
+        </form>
+    `;
+}
 const mostrar_modal = (tipo, data = {}) => {
     var html = '';
     var titulo = "";
@@ -197,6 +298,7 @@ const mostrar_modal = (tipo, data = {}) => {
         }
 
         case 'nriesgo': {
+            modalClass = 'modal-dialog modal-dialog-centered modal-lg modal-riesgo';
             titulo = "Registrar Riesgo";
             botones = `
                 <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">
@@ -207,92 +309,33 @@ const mostrar_modal = (tipo, data = {}) => {
                     Guardar riesgo
                 </button>
             `;
+            html = construirFormularioRiesgo({
+                formId: 'frm_crearriesgo',
+                action: '/crear_riesgo'
+            });
+            break;
+        }
 
-            html = `
-                <form id="frm_crearriesgo" method="post" action="/crear_riesgo">
-                    <div class="row">
-                        <div class="col-md-7">
-                            <div class="mb-3">
-                                <label class="form-label modal-label">
-                                    Nombre del riesgo
-                                </label>
-                                <input type="text" name="nombre" class="form-control" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label modal-label">
-                                    Descripción
-                                </label>
-                                <textarea name="descripcion" rows="3" class="form-control"></textarea>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label modal-label">
-                                    Impacto
-                                </label>
-                                <select id="impacto" name="impacto" class="form-select" onchange="actualizarMapaRiesgo()">
-                                    <option value="INSIGNIFICANTE">
-                                        Insignificante
-                                    </option>
-                                    <option value="MENOR">
-                                        Menor
-                                    </option>
-                                    <option value="MODERADO">
-                                        Moderado
-                                    </option>
-                                    <option value="MAYOR">
-                                        Mayor
-                                    </option>
-                                    <option value="CATASTROFICO">
-                                        Catastrófico
-                                    </option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label modal-label">
-                                    Probabilidad
-                                </label>
-                                <select id="probabilidad" name="probabilidad" class="form-select" onchange="actualizarMapaRiesgo()">
-                                    <option value="RARA">
-                                        Rara
-                                    </option>
-                                    <option value="IMPROBABLE">
-                                        Improbable
-                                    </option>
-                                    <option value="POSIBLE">
-                                        Posible
-                                    </option>
-                                    <option value="PROBABLE">
-                                        Probable
-                                    </option>
-                                    <option value="CASI_SEGURO">
-                                        Casi seguro
-                                    </option>
-                                </select>
-                            </div>
-                            <div class="mt-4">
-                                <label class="form-label modal-label">
-                                    Nivel calculado
-                                </label>
-                                <div id="nivelCalculado" class="badge bg-success fs-6">
-                                    BAJO
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-5">
-                            <div class="text-center fw-semibold mb-3">
-                                Mapa de calor
-                            </div>
-                            <div class="position-relative mx-auto" style=" width:210px; height:210px;">
-                                <div style=" display:grid; grid-template-columns:repeat(5,40px); grid-template-rows:repeat(5,40px);gap:2px;">
-                                    ${crearMapaModal()}
-                                </div>
-                                <div id="marcadorModal" style=" position:absolute; width:38px;height:38px; left:2px; top:170px; background:#198754; border-radius:6px; display:flex; justify-content:center; align-items:center; color:white; font-size:11px; font-weight:bold; transition:.3s;">
-                                    R.I.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </form>
+        case 'editar_riesgo': {
+            modalClass = 'modal-dialog modal-dialog-centered modal-lg modal-riesgo';
+            titulo = "Editar Riesgo";
+            botones = `
+                <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn-sm btn_primario" form="frm_editarriesgo">
+                    <i class="bi bi-floppy me-2"></i>
+                    Guardar cambios
+                </button>
             `;
+            html = construirFormularioRiesgo({
+                formId: 'frm_editarriesgo',
+                action: `/riesgo/${data.id_riesgo}/editar`,
+                nombre: data.nombre,
+                descripcion: data.descripcion,
+                impacto: data.impacto,
+                probabilidad: data.probabilidad
+            });
             break;
         }
 
@@ -597,33 +640,9 @@ const mostrar_modal = (tipo, data = {}) => {
     modal_titulo.innerHTML = titulo;
     modal.show();
     setTimeout(() => {
-        const frm = document.getElementById("frm_crearriesgo");
-        if (!frm) return;
-        frm.addEventListener("submit", async function (e) {
-            e.preventDefault();
-            try {
-                const respuesta = await fetch(this.action,{
-                    method:"POST",
-                    body:new FormData(this)
-                });
-                if(!respuesta.ok){
-                    throw new Error("No se pudo registrar el riesgo.");
-                }
-                mostrarFlash(
-                    "success",
-                    "Riesgo registrado correctamente."
-                );
-                cerrar_modal();
-                setTimeout(()=>{
-                    location.reload();
-                },1200);
-            }catch(error){
-                mostrarFlash(
-                    "danger",
-                    error.message
-                );
-            }
-        });
+        if(document.getElementById("impacto")){
+            actualizarMapaRiesgo();
+        }
     },100);
 }
 
@@ -1119,10 +1138,7 @@ const eliminarGrupo = async (id_grupo) => {
 
         window.location.reload();
     } catch (error) {
-        mostrarFlash(
-            "danger",
-            error.message
-        );
+        alert(error.message);
     }
 }
 
@@ -1155,91 +1171,86 @@ menu.addEventListener('click', function(){
 })
 
 
+const coloresMatrizRiesgo = [
+    ['#fbbf24','#f97316','#f97316','#ef4444','#ef4444'],
+    ['#22c55e','#fbbf24','#f97316','#f97316','#ef4444'],
+    ['#22c55e','#fbbf24','#fbbf24','#f97316','#f97316'],
+    ['#22c55e','#22c55e','#fbbf24','#fbbf24','#f97316'],
+    ['#d9ead3','#22c55e','#22c55e','#22c55e','#fbbf24']
+];
+
+const valoresImpactoRiesgo = {
+    INSIGNIFICANTE:1, MENOR:2, MODERADO:3, MAYOR:4, CATASTROFICO:5
+};
+
+const valoresProbabilidadRiesgo = {
+    RARA:1, IMPROBABLE:2, POSIBLE:3, PROBABLE:4, CASI_SEGURO:5
+};
+
+const posicionesImpactoRiesgo = {
+    INSIGNIFICANTE:0, MENOR:1, MODERADO:2, MAYOR:3, CATASTROFICO:4
+};
+
+const posicionesProbabilidadRiesgo = {
+    RARA:4, IMPROBABLE:3, POSIBLE:2, PROBABLE:1, CASI_SEGURO:0
+};
+
+function obtenerPuntajeRiesgo(impacto, probabilidad) {
+    return valoresImpactoRiesgo[impacto] * valoresProbabilidadRiesgo[probabilidad];
+}
+
 function crearMapaModal() {
-
-    const colores = [
-        ["#fbbf24","#f97316","#f97316","#ef4444","#ef4444"],
-        ["#22c55e","#fbbf24","#f97316","#f97316","#ef4444"],
-        ["#22c55e","#fbbf24","#fbbf24","#f97316","#f97316"],
-        ["#22c55e","#22c55e","#fbbf24","#fbbf24","#f97316"],
-        ["#abf2c5","#22c55e","#22c55e","#22c55e","#fbbf24"]
-    ];
-
-    let html = "";
+    let html = '';
     for (let fila = 0; fila < 5; fila++) {
+        const probabilidad = 5 - fila;
         for (let columna = 0; columna < 5; columna++) {
-            html += `
-                <div
-                    style="
-                        width:40px;
-                        height:40px;
-                        border-radius:4px;
-                        background:${colores[fila][columna]};
-                    ">
-                </div>
-            `;
+            const impacto = columna + 1;
+            const puntaje = probabilidad * impacto;
+            const color = coloresMatrizRiesgo[fila][columna];
+            const textoOscuro = color === '#d9ead3' || color === '#fbbf24';
+            html += '<div class="riesgo-modal-cell" style="background:' + color + ';color:' + (textoOscuro ? '#111827' : '#ffffff') + ';">' + puntaje + '</div>';
         }
     }
     return html;
 }
 
 function obtenerColorRiesgoMapa(impacto, probabilidad) {
-    const colores = [
-        ["#fbbf24","#f97316","#f97316","#ef4444","#ef4444"],
-        ["#22c55e","#fbbf24","#f97316","#f97316","#ef4444"],
-        ["#22c55e","#fbbf24","#fbbf24","#f97316","#f97316"],
-        ["#22c55e","#22c55e","#fbbf24","#fbbf24","#f97316"],
-        ["#abf2c5","#22c55e","#22c55e","#22c55e","#fbbf24"]
-    ];
-    const impactos = {
-        INSIGNIFICANTE:0, MENOR:1, MODERADO:2, MAYOR:3, CATASTROFICO:4
-    };
-    const probabilidades = {
-        RARA:4, IMPROBABLE:3, POSIBLE:2, PROBABLE:1, CASI_SEGURO:0
-    };
-    const x = impactos[impacto];
-    const y = probabilidades[probabilidad];
+    const x = posicionesImpactoRiesgo[impacto];
+    const y = posicionesProbabilidadRiesgo[probabilidad];
     if (x === undefined || y === undefined) {
         return null;
     }
-    return colores[y][x];
+    return coloresMatrizRiesgo[y][x];
 }
 
 function calcularNivelRiesgo(impacto, probabilidad) {
-    const valorImpacto = {
-        INSIGNIFICANTE:1, MENOR:2, MODERADO:3, MAYOR:4, CATASTROFICO:5
-    };
+    const total = obtenerPuntajeRiesgo(impacto, probabilidad);
 
-    const valorProbabilidad = {
-        RARA:1, IMPROBABLE:2, POSIBLE:3, PROBABLE:4, CASI_SEGURO:5
-    };
-
-    const total =
-        valorImpacto[impacto] *
-        valorProbabilidad[probabilidad];
-
+    if(total === 1){
+        return 'MUY BAJO';
+    }
     if(total <= 4){
-        return "BAJO";
+        return 'BAJO';
     }
     if(total <= 9){
-        return "MEDIO";
+        return 'MEDIO';
     }
     if(total <= 16){
-        return "ALTO";
+        return 'ALTO';
     }
-    return "EXTREMO";
+    return 'EXTREMO';
 }
 
 function obtenerColorNivelRiesgo(nivel) {
     const colores = {
-        BAJO: "#22c55e",
-        MEDIO: "#fbbf24",
-        ALTO: "#f97316",
-        EXTREMO: "#ef4444"
+        'MUY BAJO': '#d9ead3',
+        BAJO: '#22c55e',
+        MEDIO: '#fbbf24',
+        ALTO: '#f97316',
+        EXTREMO: '#ef4444'
     };
     return colores[nivel] || null;
 }
-
 function actualizarMapaRiesgo() {
     const impacto = document.getElementById("impacto").value;
     const probabilidad = document.getElementById("probabilidad").value;
@@ -1262,7 +1273,7 @@ function moverMarcadorModal(
         return;
     }
 
-    const marcador = document.getElementById("marcadorModal");
+    const marcador = document.getElementById('marcadorModal');
 
     if(!marcador)
         return;
@@ -1275,11 +1286,12 @@ function moverMarcadorModal(
     };
     const x = impactos[impacto];
     const y = probabilidades[probabilidad];
-    const nivel = calcularNivelRiesgo(impacto, probabilidad);
-    const colorNivel = obtenerColorNivelRiesgo(nivel) || colorMapa;
-    marcador.style.left = (x * 42 + 2) + "px";
-    marcador.style.top = (y* 42 + 2) + "px";
-    marcador.style.background = colorNivel;
+    const celda = marcador.previousElementSibling?.children?.[y * 5 + x];
+    const colorCelda = celda ? getComputedStyle(celda).backgroundColor : colorMapa;
+    marcador.style.left = (x * 42 + 2) + 'px';
+    marcador.style.top = (y* 42 + 2) + 'px';
+    marcador.style.background = colorCelda;
+    marcador.style.color = (colorMapa === '#d9ead3' || colorMapa === '#fbbf24') ? '#111827' : '#ffffff';
 
 }
 
@@ -1287,51 +1299,31 @@ function calcularNivelModal(
     impacto,
     probabilidad
 ) {
-
-    const valorImpacto = {
-        INSIGNIFICANTE:1, MENOR:2, MODERADO:3, MAYOR:4, CATASTROFICO:5
-    };
-
-    const valorProbabilidad = {
-        RARA:1, IMPROBABLE:2, POSIBLE:3, PROBABLE:4, CASI_SEGURO:5
-    };
-    const total =
-        valorImpacto[impacto] *
-        valorProbabilidad[probabilidad];
     const badge =
-        document.getElementById("nivelCalculado");
+        document.getElementById('nivelCalculado');
     if(!badge)
         return;
-    badge.className = "badge fs-6";
-    if(total <= 4){
-        badge.classList.add("bg-success");
-        badge.innerHTML = "BAJO";
-    }
-    else if(total <= 9){
-        badge.classList.add(
-            "bg-warning",
-            "text-dark"
-        );
-        badge.innerHTML = "MEDIO";
-    }
-    else if(total <= 16){
-        badge.classList.add("bg-danger");
-        badge.innerHTML = "ALTO";
-    }
-    else{
-        badge.classList.add("bg-danger");
-        badge.innerHTML = "EXTREMO";
-    }
 
     const nivel = calcularNivelRiesgo(impacto, probabilidad);
-    const color = obtenerColorNivelRiesgo(nivel);
-    if (color) {
-        badge.style.background = color;
-        badge.style.borderColor = color;
-        badge.style.color = (nivel === "BAJO" || nivel === "MEDIO") ? "#111827" : "#ffffff";
-    }
-}
+    const colorMapa = obtenerColorRiesgoMapa(impacto, probabilidad);
+    const marcador = document.getElementById('marcadorModal');
+    const impactos = {
+        INSIGNIFICANTE:0, MENOR:1, MODERADO:2, MAYOR:3, CATASTROFICO:4
+    };
+    const probabilidades = {
+        RARA:4, IMPROBABLE:3, POSIBLE:2, PROBABLE:1, CASI_SEGURO:0
+    };
+    const x = impactos[impacto];
+    const y = probabilidades[probabilidad];
+    const celda = marcador?.previousElementSibling?.children?.[y * 5 + x];
+    const colorCelda = celda ? getComputedStyle(celda).backgroundColor : colorMapa;
 
+    badge.className = 'badge fs-6';
+    badge.innerHTML = nivel;
+    badge.style.background = colorCelda || '';
+    badge.style.borderColor = colorCelda || '';
+    badge.style.color = (colorMapa === '#d9ead3' || colorMapa === '#fbbf24') ? '#111827' : '#ffffff';
+}
 const eliminarControl = async (id_control) => {
     if (!confirm('¿Seguro que deseas eliminar este control?')) {
         return;
@@ -1352,30 +1344,34 @@ const eliminarControl = async (id_control) => {
     }
 }
 
+function abrirEditarRiesgo(boton) {
+    mostrar_modal('editar_riesgo', {
+        id_riesgo: boton.dataset.idRiesgo,
+        nombre: boton.dataset.nombre || '',
+        descripcion: boton.dataset.descripcion || '',
+        impacto: boton.dataset.impacto || 'INSIGNIFICANTE',
+        probabilidad: boton.dataset.probabilidad || 'RARA'
+    });
+}
 async function eliminarRiesgo(id) {
     event.stopPropagation();
     if (!confirm("¿Desea eliminar este riesgo?")) {
         return;
     }
     try {
-        const respuesta = await fetch(`/riesgo/${id}/eliminar`,{
-            method:"POST"
+        const respuesta = await fetch(`/riesgo/${id}/eliminar`, {
+            method: "POST"
         });
-        const data = await respuesta.json();
-        if(!respuesta.ok){
-            throw new Error(data.mensaje);
+        if (!respuesta.ok) {
+            throw new Error("No se pudo eliminar el riesgo.");
         }
-        mostrarFlash("success",data.mensaje);
-        setTimeout(()=>{
-            location.reload();
-        },1200);
-    }catch(error){
-        mostrarFlash("warning",error.message);
+        location.reload();
+    } catch (error) {
+        alert(error.message);
     }
 }
 
 async function verProcesos(id) {
-    window.idRiesgoActual = id;
     event.stopPropagation();
     try {
         const [respuestaAsociados, respuestaDisponibles] = await Promise.all([ fetch(`/riesgo/${id}/procesos`), fetch(`/riesgo/${id}/procesos_disponibles`)]);
@@ -1386,7 +1382,6 @@ async function verProcesos(id) {
         }
         const procesos = await respuestaAsociados.json();
         const disponibles = await respuestaDisponibles.json();
-        window.procesosDisponibles = disponibles;
         let html = `
         <div class="container-fluid">
             <div id="mensajeSinProcesos" class="alert alert-light border text-center ${procesos.length ? 'd-none' : ''}">
@@ -1394,39 +1389,26 @@ async function verProcesos(id) {
                     Este riesgo aún no tiene procesos asociados.
             </div>
 
-            <div class="row g-2 mb-3">
-                <div class="col-md-7">
-                    <label class="form-label modal-label">
-                        Buscar proceso
-                    </label>
-                     <div class="input-group integrantes-search">   
-                        <span class="input-group-text">
-                            <i class="bi bi-search"></i>
-                        </span>
-                        <input id="buscarProceso" type="text" class="form-control" placeholder="Nombre del proceso" oninput="filtrarProcesosDisponibles()">
-                    </div>
-                </div>
-                <div class="col-md-5">
-                    <label class="form-label modal-label">
-                        Proceso encontrado
-                    </label>
-                    <select id="selectProcesoDisponible" class="form-select" onchange="mostrarProcesoSeleccionado()">
-                        <option value="">
-                            Busque un proceso primero
-                        </option>
-                    </select>
-                </div>    
-            </div>
-            
-            <div class="mb-4">
-                <button id="btnAgregarProceso" class="btn btn_primario" style="display:none">
-                    <i class="bi bi-plus-lg me-2"></i>
-                        Agregar proceso
-                </button>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">
+                    Buscar proceso
+                </label>
+                <input id="buscarProceso" class="form-control" placeholder="Buscar proceso...">
             </div>
 
-
+            <div id="listaBusqueda" class="list-group mb-4" style="max-height:180px;overflow:auto;">
         `;
+
+        disponibles.forEach(p=>{
+            html+=`
+                <div class="list-group-item d-flex justify-content-between align-items-center" data-nombre="${p.nombre.toLowerCase()}">
+                    ${p.nombre}
+                    <button class="btn btn-sm btn-success" onclick="agregarProceso(${id}, ${p.id_proceso})">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                </div>
+            `;
+        });
 
         html+=`
 
@@ -1460,17 +1442,12 @@ async function verProcesos(id) {
                 Cerrar
             </button>
         `;
-        modal_dialog.className = "modal-dialog modal-dialog-centered modal-xl modal-procesos";
-        modal_dialog.style.maxWidth = "750px";
         modal.show();
         console.log(document.getElementById("buscarProceso"));
         activarBuscador();
 
     } catch (error) {
-        mostrarFlash(
-            "warning",
-            error.message
-        );
+        alert(error.message);
     }
 }
 
@@ -1585,11 +1562,24 @@ function activarBuscador(){
 }
 
 function actualizarListaBusqueda(idRiesgo, disponibles){
-    window.procesosDisponibles = disponibles;
-    document.getElementById("buscarProceso").value="";
-    document.getElementById("selectProcesoDisponible").innerHTML =
-        `<option value="">Busque un proceso primero</option>`;
-    document.getElementById("btnAgregarProceso").style.display="none";
+    const contenedor = document.getElementById("listaBusqueda");
+    if(!contenedor){
+        return;
+    }
+    contenedor.innerHTML="";
+    disponibles.forEach(p=>{
+        contenedor.innerHTML +=`
+            <div class="list-group-item d-flex justify-content-between align-items-center" data-nombre="${p.nombre}">
+                ${p.nombre}
+                <button
+                    class="btn btn-sm btn-success"
+                    onclick="agregarProceso(${idRiesgo},${p.id_proceso})">
+                    <i class="bi bi-plus"></i>
+                </button>
+            </div>
+        `;
+    });
+    activarBuscador();
 }
 
 
@@ -1623,49 +1613,3 @@ window.calcularNivelRiesgo = calcularNivelRiesgo;
 window.obtenerColorNivelRiesgo = obtenerColorNivelRiesgo;
 window.ver_control = ver_control;
 window.eliminarControl = eliminarControl;
-
-function filtrarProcesosDisponibles(){
-    const texto = document
-        .getElementById("buscarProceso")
-        .value
-        .trim()
-        .toLowerCase();
-    const select = document.getElementById("selectProcesoDisponible");
-    select.innerHTML = "";
-    if(texto===""){
-        select.innerHTML =
-            `<option value="">Busque un proceso primero</option>`;
-        return;
-    }
-    const encontrados = window.procesosDisponibles.filter(p =>
-        p.nombre.toLowerCase().includes(texto)
-    );
-    if(encontrados.length===0){
-        select.innerHTML =
-            `<option value="">No se encontraron resultados</option>`;
-        return;
-    }
-    select.innerHTML =
-        `<option value="">Seleccione un proceso</option>`;
-    encontrados.forEach(p=>{
-        select.innerHTML +=
-        `<option value="${p.id_proceso}">
-            ${p.nombre}
-        </option>`;
-    });
-}
-
-
-function mostrarProcesoSeleccionado(){
-    const boton = document.getElementById("btnAgregarProceso");
-    const idProceso =
-        document.getElementById("selectProcesoDisponible").value;
-    if(!idProceso){
-        boton.style.display="none";
-        return;
-    }
-    boton.style.display="inline-flex";
-    boton.onclick=function(){
-        agregarProceso(window.idRiesgoActual,idProceso);
-    };
-}

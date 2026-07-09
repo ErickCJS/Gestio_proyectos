@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         const grupoWrap = document.getElementById('dashGrupoFiltro');
                         const riskList = document.getElementById('dashRiskList');
                         const heatGrid = document.getElementById('dashHeatGrid');
-                        const heatTotal = document.getElementById('dashHeatTotal');
                         const riesgoResumen = document.getElementById('dashRiesgoResumen');
                         const detalleTitulo = document.getElementById('dashDetalleTitulo');
                         const detalleNivel = document.getElementById('dashDetalleNivel');
@@ -99,7 +98,10 @@ document.addEventListener('DOMContentLoaded', function () {
                                     cell.className = 'dash-heat-cell';
                                     cell.style.background = colores[y][x];
                                     cell.style.color = (colores[y][x] === '#d9ead3' || colores[y][x] === '#fbbf24') ? '#111827' : '#fff';
-                                    cell.innerHTML = `<span>${probabilidad * impacto}</span>${valor ? `<b>${valor}</b>` : ''}`;
+                                    const etiquetaCelda = 'Probabilidad ' + probabilidad + ', impacto ' + impacto + (valor ? ', ' + valor + ' riesgo' + (valor === 1 ? '' : 's') : '');
+                                    cell.setAttribute('aria-label', etiquetaCelda);
+                                    cell.title = etiquetaCelda;
+                                    cell.innerHTML = valor ? '<b>' + valor + '</b>' : '';
                                     cell.classList.toggle('selected', cuadranteActivo && cuadranteActivo.impacto === impacto && cuadranteActivo.probabilidad === probabilidad);
                                     cell.addEventListener('click', () => {
                                         const mismo = cuadranteActivo && cuadranteActivo.impacto === impacto && cuadranteActivo.probabilidad === probabilidad;
@@ -110,7 +112,6 @@ document.addEventListener('DOMContentLoaded', function () {
                                     heatGrid.appendChild(cell);
                                 }
                             }
-                            heatTotal.textContent = baseRiesgos.length;
                         }
 
                         function renderLista(lista) {

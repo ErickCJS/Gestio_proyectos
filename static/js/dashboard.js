@@ -636,12 +636,25 @@ const mostrar_modal = (tipo, data = {}) => {
     modal_footer.innerHTML = botones;
     modal_cuerpo.innerHTML = html;
     modal_titulo.innerHTML = titulo;
+
+    const debeActualizarMapa = Boolean(
+        document.getElementById('impacto') &&
+        document.getElementById('probabilidad') &&
+        document.getElementById('mapaRiesgoModal')
+    );
+    const repintarMapaRiesgo = () => {
+        if (!debeActualizarMapa) return;
+        actualizarMapaRiesgo();
+        requestAnimationFrame(actualizarMapaRiesgo);
+    };
+
+    if (debeActualizarMapa) {
+        el_modal.addEventListener('shown.bs.modal', repintarMapaRiesgo, { once: true });
+    }
     modal.show();
-    setTimeout(() => {
-        if(document.getElementById("impacto")){
-            actualizarMapaRiesgo();
-        }
-    },100);
+    if (debeActualizarMapa) {
+        setTimeout(repintarMapaRiesgo, 380);
+    }
 }
 
 const cerrar_modal = () => {
@@ -1371,83 +1384,135 @@ async function eliminarRiesgo(id) {
     }
 }
 
-async function verProcesos(id) {
-    event.stopPropagation();
-    try {
-        const [respuestaAsociados, respuestaDisponibles] = await Promise.all([ fetch(`/riesgo/${id}/procesos`), fetch(`/riesgo/${id}/procesos_disponibles`)]);
-        if (
-            !respuestaAsociados.ok || !respuestaDisponibles.ok
-        ){
-            throw new Error( "No se pudieron cargar los procesos." );
-        }
-        const procesos = await respuestaAsociados.json();
-        const disponibles = await respuestaDisponibles.json();
-        let html = `
-        <div class="container-fluid">
-            <div id="mensajeSinProcesos" class="alert alert-light border text-center ${procesos.length ? 'd-none' : ''}">
-                <i class="bi bi-diagram-3 fs-3 d-block mb-2"></i>
-                    Este riesgo aún no tiene procesos asociados.
-            </div>
+function construirItemProcesoDisponible(idRiesgo, proceso) {
+    const nombre = escaparHtmlRiesgo(proceso.nombre || 'Proceso');
+    const filtro = escaparHtmlRiesgo(String(proceso.nombre || '').toLowerCase());
+    return `
+        <div class="list-group-item d-flex justify-content-between align-items-center gap-2" data-nombre="${filtro}">
+            <span class="text-truncate">${nombre}</span>
+            <button type="button" class="btn btn-sm btn-success" onclick="agregarProceso(${idRiesgo}, ${proceso.id_proceso})" title="Asociar proceso">
+                <i class="bi bi-plus"></i>
+            </button>
+        </div>
+    `;
+}
 
-            <div class="mb-3">
-                <label class="form-label fw-semibold">
-                    Buscar proceso
-                </label>
-                <input id="buscarProceso" class="form-control" placeholder="Buscar proceso...">
-            </div>
+function construirItemProcesoAsociado(idRiesgo, proceso) {
+    const nombre = escaparHtmlRiesgo(proceso.nombre || 'Proceso');
+    return `
+        <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
+            <span class="text-truncate">${nombre}</span>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="quitarProceso(${idRiesgo}, ${proceso.id_proceso})" title="Quitar proceso">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    `;
+}
 
-            <div id="listaBusqueda" class="list-group mb-4" style="max-height:180px;overflow:auto;">
-        `;
-
-        disponibles.forEach(p=>{
-            html+=`
-                <div class="list-group-item d-flex justify-content-between align-items-center" data-nombre="${p.nombre.toLowerCase()}">
-                    ${p.nombre}
-                    <button class="btn btn-sm btn-success" onclick="agregarProceso(${id}, ${p.id_proceso})">
-                        <i class="bi bi-plus"></i>
-                    </button>
+function mostrarCuerpoProcesos(idRiesgo) {
+    modal_dialog.className = 'modal-dialog modal-dialog-centered modal-lg modal-procesos-riesgo';
+    modal_titulo.innerHTML = 'Procesos asociados';
+    modal_cuerpo.innerHTML = `
+        <div class="procesos-riesgo-modal">
+            <div class="procesos-riesgo-hero">
+                <div>
+                    <span class="procesos-riesgo-kicker">Relación del riesgo</span>
+                    <strong>Conecta este riesgo con los procesos donde impacta</strong>
+                    <small>Asocia o retira procesos sin salir de la tabla.</small>
                 </div>
-            `;
-        });
-
-        html+=`
-
-            </div>
-                <hr>
-                <h6 class="fw-semibold">
-                    Procesos asociados
-                </h6>
-            <div id="listaProcesosAsociados" class="list-group" style="max-height:220px;overflow:auto;">
-        `;
-        procesos.forEach(p=>{
-            html+=`
-                <div class="list-group-item d-flex justify-content-between align-items-center" data-nombre="${p.nombre.toLowerCase()}">
-                    <span>${p.nombre}</span>
-                    <button class="btn btn-sm btn-outline-danger" onclick="quitarProceso(${id},${p.id_proceso})">
-                        <i class="bi bi-x-lg"></i>
-                    </button>
+                <div id="procesosModalEstado" class="procesos-riesgo-status">
+                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                    <span>Cargando...</span>
                 </div>
-            `;
-        });
-        
-        html+=`
+            </div>
+
+            <div class="row g-3">
+                <div class="col-12 col-lg-6">
+                    <section class="procesos-riesgo-card">
+                        <div class="procesos-riesgo-heading">
+                            <span><i class="bi bi-search"></i></span>
+                            <div>
+                                <strong>Procesos disponibles</strong>
+                                <small>Busca y agrega los que correspondan.</small>
+                            </div>
+                        </div>
+                        <div class="input-group mb-3">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input id="buscarProceso" class="form-control" placeholder="Filtrar procesos..." disabled>
+                        </div>
+                        <div id="listaBusqueda" class="list-group procesos-riesgo-lista">
+                            <div class="list-group-item text-secondary">Preparando lista...</div>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="col-12 col-lg-6">
+                    <section class="procesos-riesgo-card procesos-riesgo-card-asociados">
+                        <div class="procesos-riesgo-heading">
+                            <span><i class="bi bi-diagram-3"></i></span>
+                            <div>
+                                <strong>Procesos asociados</strong>
+                                <small>Resumen activo para este riesgo.</small>
+                            </div>
+                            <em id="contadorProcesosAsociados">0</em>
+                        </div>
+                        <div id="listaProcesosAsociados" class="list-group procesos-riesgo-lista">
+                            <div class="list-group-item text-secondary">Preparando lista...</div>
+                        </div>
+                    </section>
+                </div>
             </div>
         </div>
-        `;
-        modal_titulo.innerHTML = "Procesos asociados";
-        modal_cuerpo.innerHTML = html;
+    `;
+    modal_footer.innerHTML = `
+        <button type="button" class="btn btn-secondary" onclick="cerrar_modal()">Cerrar</button>
+    `;
+    modal.show();
+}
 
-        modal_footer.innerHTML = `
-            <button class="btn btn-secondary" onclick="cerrar_modal()">
-                Cerrar
-            </button>
-        `;
-        modal.show();
-        console.log(document.getElementById("buscarProceso"));
+function actualizarEstadoProcesos(procesos) {
+    const estado = document.getElementById('procesosModalEstado');
+    if (!estado) return;
+
+    if (!procesos.length) {
+        estado.className = 'procesos-riesgo-status empty';
+        estado.innerHTML = '<i class="bi bi-diagram-3"></i><span>Sin procesos</span>';
+        return;
+    }
+
+    estado.className = 'procesos-riesgo-status ready';
+    estado.innerHTML = `<i class="bi bi-check-circle"></i><span>${procesos.length} asociado${procesos.length === 1 ? '' : 's'}</span>`;
+}
+
+async function verProcesos(id) {
+    mostrarCuerpoProcesos(id);
+    try {
+        const [respuestaAsociados, respuestaDisponibles] = await Promise.all([
+            fetch(`/riesgo/${id}/procesos`),
+            fetch(`/riesgo/${id}/procesos_disponibles`)
+        ]);
+
+        if (!respuestaAsociados.ok || !respuestaDisponibles.ok) {
+            throw new Error('No se pudieron cargar los procesos.');
+        }
+
+        const [procesos, disponibles] = await Promise.all([
+            respuestaAsociados.json(),
+            respuestaDisponibles.json()
+        ]);
+
+        actualizarListaBusqueda(id, disponibles);
+        actualizarListaAsociados(id, procesos);
+        actualizarEstadoProcesos(procesos);
         activarBuscador();
-
     } catch (error) {
-        alert(error.message);
+        const estado = document.getElementById('procesosModalEstado');
+        if (estado) {
+            estado.className = 'alert alert-danger mb-3';
+            estado.textContent = error.message;
+        } else {
+            alert(error.message);
+        }
     }
 }
 
@@ -1470,8 +1535,8 @@ async function agregarProceso(idRiesgo, idProceso) {
     }
     catch (error) {
         mostrarFlash(
-            "info",
-            "Proceso retirado correctamente."
+            "danger",
+            error.message || "No se pudo asociar el proceso."
         );
     }
 }
@@ -1497,110 +1562,68 @@ async function quitarProceso(idRiesgo,idProceso){
     }
     catch(error){
         mostrarFlash(
-            "info",
-            "Proceso retirado correctamente."
+            "danger",
+            error.message || "No se pudo quitar el proceso."
         );
     }
 }
 
-async function recargarProcesos(idRiesgo){
+async function recargarProcesos(idRiesgo) {
+    const [asociados, disponibles] = await Promise.all([
+        fetch(`/riesgo/${idRiesgo}/procesos`),
+        fetch(`/riesgo/${idRiesgo}/procesos_disponibles`)
+    ]);
 
-    const asociados = await fetch(`/riesgo/${idRiesgo}/procesos`);
-    const disponibles = await fetch(`/riesgo/${idRiesgo}/procesos_disponibles`);
+    if (!asociados.ok || !disponibles.ok) {
+        throw new Error('No se pudieron actualizar los procesos.');
+    }
 
-    const procesos = await asociados.json();
-    const lista = await disponibles.json();
+    const [procesos, lista] = await Promise.all([
+        asociados.json(),
+        disponibles.json()
+    ]);
 
     actualizarListaBusqueda(idRiesgo, lista);
     actualizarListaAsociados(idRiesgo, procesos);
+    actualizarEstadoProcesos(procesos);
     activarBuscador();
-
-    const mensaje = document.getElementById("mensajeSinProcesos");
-
-    if(mensaje){
-
-        if(procesos.length===0)
-            mensaje.classList.remove("d-none");
-        else
-            mensaje.classList.add("d-none");
-
-    }
-
 }
 
-function activarBuscador(){
-    const buscador = document.getElementById("buscarProceso");
-    if(!buscador){
-         console.log("No existe");
-        return;
-    }
-    buscador.onkeyup = function(){
+function activarBuscador() {
+    const buscador = document.getElementById('buscarProceso');
+    if (!buscador) return;
+
+    buscador.disabled = false;
+    buscador.oninput = function() {
         const texto = this.value.trim().toLowerCase();
-        console.log(document.querySelectorAll("#listaBusqueda .list-group-item"));
-        
-        document.querySelectorAll("#listaBusqueda .list-group-item")
-            .forEach(item=>{
-                const coincide = item.dataset.nombre.includes(texto);
-                
-                console.log(item.dataset.nombre);
-                
-                console.log(
-                    item.dataset.nombre,
-                    coincide,
-                    item.style.display
-                );
-                
-                 if (coincide) {
-    item.removeAttribute("style");
-} else {
-    item.setAttribute("style","display:none !important");
-}
-
-    console.log("DESPUÉS:", item.style.display);
+        document.querySelectorAll('#listaBusqueda .list-group-item[data-nombre]')
+            .forEach((item) => {
+                item.classList.toggle('d-none', !item.dataset.nombre.includes(texto));
             });
     };
 }
 
-function actualizarListaBusqueda(idRiesgo, disponibles){
-    const contenedor = document.getElementById("listaBusqueda");
-    if(!contenedor){
-        return;
-    }
-    contenedor.innerHTML="";
-    disponibles.forEach(p=>{
-        contenedor.innerHTML +=`
-            <div class="list-group-item d-flex justify-content-between align-items-center" data-nombre="${p.nombre}">
-                ${p.nombre}
-                <button
-                    class="btn btn-sm btn-success"
-                    onclick="agregarProceso(${idRiesgo},${p.id_proceso})">
-                    <i class="bi bi-plus"></i>
-                </button>
-            </div>
-        `;
-    });
-    activarBuscador();
+function actualizarListaBusqueda(idRiesgo, disponibles) {
+    const contenedor = document.getElementById('listaBusqueda');
+    if (!contenedor) return;
+
+    contenedor.innerHTML = disponibles.length
+        ? disponibles.map((proceso) => construirItemProcesoDisponible(idRiesgo, proceso)).join('')
+        : '<div class="list-group-item text-secondary">No hay procesos disponibles para asociar.</div>';
 }
 
+function actualizarListaAsociados(idRiesgo, procesos) {
+    const contenedor = document.getElementById('listaProcesosAsociados');
+    const contador = document.getElementById('contadorProcesosAsociados');
+    if (!contenedor) return;
 
-function actualizarListaAsociados(idRiesgo, procesos){
-    const contenedor =
-        document.getElementById("listaProcesosAsociados");
-    if(!contenedor)
-        return;
-    contenedor.innerHTML="";
-    procesos.forEach(p=>{
-        contenedor.innerHTML +=`
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-                <span>${p.nombre}</span>
-                <button
-                    class="btn btn-sm btn-outline-danger"
-                    onclick="quitarProceso(${idRiesgo},${p.id_proceso})">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </div>
-        `;
-    });
+    contenedor.innerHTML = procesos.length
+        ? procesos.map((proceso) => construirItemProcesoAsociado(idRiesgo, proceso)).join('')
+        : '<div class="list-group-item text-secondary">Sin procesos asociados.</div>';
+
+    if (contador) {
+        contador.textContent = procesos.length;
+    }
 }
 
 function mostrarFlash(tipo, texto) {

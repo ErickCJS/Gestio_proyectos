@@ -28,6 +28,137 @@ def usuario_actual(request):
     }
 
 templates.env.globals["usuario_actual"] = usuario_actual
+
+VALORES_PROBABILIDAD_RESIDUAL = {
+    "RARA": 20,
+    "IMPROBABLE": 40,
+    "POSIBLE": 60,
+    "PROBABLE": 80,
+    "CASI_SEGURO": 100,
+}
+
+VALORES_IMPACTO_RESIDUAL = {
+    "INSIGNIFICANTE": 20,
+    "MENOR": 40,
+    "MODERADO": 60,
+    "MAYOR": 80,
+    "CATASTROFICO": 100,
+}
+
+VALORES_SOLIDEZ_CONTROL = {
+    "Muy baja": 10,
+    "Baja": 30,
+    "Media": 50,
+    "Alta": 70,
+    "Muy alta": 90,
+}
+
+CATEGORIAS_PROBABILIDAD_RESIDUAL = [
+    (20, "Raro", 20),
+    (40, "Improbable", 40),
+    (60, "Posible", 60),
+    (80, "Probable", 80),
+    (100, "Casi seguro", 100),
+]
+
+CATEGORIAS_IMPACTO_RESIDUAL = [
+    (20, "Insignificante", 20),
+    (40, "Menor", 40),
+    (60, "Moderado", 60),
+    (80, "Mayor", 80),
+    (100, "Catastrófico", 100),
+]
+
+
+def _porcentaje(valor):
+    try:
+        numero = float(valor or 0)
+    except (TypeError, ValueError):
+        numero = 0
+    return max(0, min(100, numero))
+
+
+def _redondear(valor):
+    return round(float(valor or 0), 2)
+
+
+def _categoria_residual(valor, categorias):
+    valor = max(0, min(100, float(valor or 0)))
+    for limite, etiqueta, categoria in categorias:
+        if valor <= limite:
+            return etiqueta, categoria
+    return categorias[-1][1], categorias[-1][2]
+
+
+def calcular_reporte_riesgo_residual(riesgo, controles):
+    probabilidad_inicial = VALORES_PROBABILIDAD_RESIDUAL.get(riesgo.get("probabilidad"), 0)
+    impacto_inicial = VALORES_IMPACTO_RESIDUAL.get(riesgo.get("impacto"), 0)
+    riesgo_inherente = (probabilidad_inicial * impacto_inicial) / 100
+
+    controles_evaluados = []
+    reducciones_probabilidad = []
+    reducciones_impacto = []
+
+    for control in controles:
+        solidez = control.get("solidez_control") or "Media"
+        solidez_valor = VALORES_SOLIDEZ_CONTROL.get(solidez, 50)
+        mitigacion_probabilidad = _porcentaje(control.get("mitigacion_probabilidad"))
+        mitigacion_impacto = _porcentaje(control.get("mitigacion_impacto"))
+        reduccion_probabilidad = (mitigacion_probabilidad * solidez_valor) / 100
+        reduccion_impacto = (mitigacion_impacto * solidez_valor) / 100
+
+        if mitigacion_probabilidad > 0:
+            reducciones_probabilidad.append(reduccion_probabilidad)
+        if mitigacion_impacto > 0:
+            reducciones_impacto.append(reduccion_impacto)
+
+        control["solidez_valor"] = solidez_valor
+        control["mitigacion_probabilidad"] = _redondear(mitigacion_probabilidad)
+        control["mitigacion_impacto"] = _redondear(mitigacion_impacto)
+        control["reduccion_real_probabilidad"] = _redondear(reduccion_probabilidad)
+        control["reduccion_real_impacto"] = _redondear(reduccion_impacto)
+        controles_evaluados.append({
+            "nombre": control.get("nombre", ""),
+            "solidez": solidez,
+            "solidez_valor": solidez_valor,
+            "mitigacion_probabilidad": _redondear(mitigacion_probabilidad),
+            "mitigacion_impacto": _redondear(mitigacion_impacto),
+            "reduccion_real_probabilidad": _redondear(reduccion_probabilidad),
+            "reduccion_real_impacto": _redondear(reduccion_impacto),
+        })
+
+    promedio_probabilidad = sum(reducciones_probabilidad) / len(reducciones_probabilidad) if reducciones_probabilidad else 0
+    promedio_impacto = sum(reducciones_impacto) / len(reducciones_impacto) if reducciones_impacto else 0
+    probabilidad_residual = max(0, probabilidad_inicial - promedio_probabilidad)
+    impacto_residual = max(0, impacto_inicial - promedio_impacto)
+    riesgo_residual_exacto = (probabilidad_residual * impacto_residual) / 100
+    probabilidad_categoria, probabilidad_residual_categorizada = _categoria_residual(
+        probabilidad_residual,
+        CATEGORIAS_PROBABILIDAD_RESIDUAL,
+    )
+    impacto_categoria, impacto_residual_categorizado = _categoria_residual(
+        impacto_residual,
+        CATEGORIAS_IMPACTO_RESIDUAL,
+    )
+    riesgo_residual_categorizado = (probabilidad_residual_categorizada * impacto_residual_categorizado) / 100
+
+    return {
+        "probabilidad_inicial": probabilidad_inicial,
+        "impacto_inicial": impacto_inicial,
+        "riesgo_inherente": _redondear(riesgo_inherente),
+        "controles_evaluados": controles_evaluados,
+        "total_controles_evaluados": len(controles_evaluados),
+        "reduccion_promedio_probabilidad": _redondear(promedio_probabilidad),
+        "reduccion_promedio_impacto": _redondear(promedio_impacto),
+        "probabilidad_residual": _redondear(probabilidad_residual),
+        "impacto_residual": _redondear(impacto_residual),
+        "riesgo_residual_exacto": _redondear(riesgo_residual_exacto),
+        "probabilidad_residual_categoria": probabilidad_categoria,
+        "probabilidad_residual_categorizada": probabilidad_residual_categorizada,
+        "impacto_residual_categoria": impacto_categoria,
+        "impacto_residual_categorizado": impacto_residual_categorizado,
+        "riesgo_residual_categorizado": _redondear(riesgo_residual_categorizado),
+    }
 def obtener_metricas_dashboard():
     metricas = {
         "grupos": 0,
@@ -166,6 +297,8 @@ def obtener_metricas_dashboard():
                     descripcion,
                     tipo,
                     solidez_control,
+                    mitigacion_probabilidad,
+                    mitigacion_impacto,
                     estado
                 FROM control
                 ORDER BY id_control DESC
@@ -178,6 +311,8 @@ def obtener_metricas_dashboard():
                     "descripcion": control["descripcion"] or "",
                     "tipo": control["tipo"],
                     "solidez_control": control["solidez_control"],
+                    "mitigacion_probabilidad": control["mitigacion_probabilidad"],
+                    "mitigacion_impacto": control["mitigacion_impacto"],
                     "estado": control["estado"]
                 })
 
@@ -200,6 +335,8 @@ def obtener_metricas_dashboard():
                 impacto_valor = valores_impacto.get(riesgo["impacto"], 0)
                 probabilidad_valor = valores_probabilidad.get(riesgo["probabilidad"], 0)
                 puntaje = impacto_valor * probabilidad_valor
+                controles_riesgo = controles_por_riesgo.get(riesgo["id_riesgo"], [])
+                reporte_residual = calcular_reporte_riesgo_residual(riesgo, controles_riesgo)
                 riesgos_detalle.append({
                     "id_riesgo": riesgo["id_riesgo"],
                     "codigo": f"RSK-{riesgo['id_riesgo']:03d}",
@@ -213,7 +350,8 @@ def obtener_metricas_dashboard():
                     "probabilidad_valor": probabilidad_valor,
                     "procesos": procesos_riesgo,
                     "grupos": grupos,
-                    "controles": controles_por_riesgo.get(riesgo["id_riesgo"], [])
+                    "controles": controles_riesgo,
+                    "riesgo_residual": reporte_residual
                 })
 
             metricas["riesgos_detalle"] = riesgos_detalle
@@ -317,6 +455,51 @@ def construir_excel_detalle_riesgo(riesgo):
             fila_actual += 1
     else:
         filas.append(_excel_row(fila_actual, [("A", "Este riesgo aún no tiene controles asociados.", 0)]))
+
+    if not riesgo["controles"]:
+        fila_actual += 1
+
+    residual = riesgo.get("riesgo_residual", {})
+    fila_actual += 1
+    merges.append(f"A{fila_actual}:F{fila_actual}")
+    filas.append(_excel_row(fila_actual, [("A", "Reporte de riesgo residual", 2)]))
+    fila_actual += 1
+    filas.append(_excel_row(fila_actual, [("A", "Métrica", 3), ("B", "Valor", 3), ("C", "Detalle", 3)]))
+    fila_actual += 1
+    filas.extend([
+        _excel_row(fila_actual, [("A", "Probabilidad inicial", 0), ("B", residual.get("probabilidad_inicial", 0), 0)]),
+        _excel_row(fila_actual + 1, [("A", "Impacto inicial", 0), ("B", residual.get("impacto_inicial", 0), 0)]),
+        _excel_row(fila_actual + 2, [("A", "Riesgo inherente", 0), ("B", residual.get("riesgo_inherente", 0), 0)]),
+        _excel_row(fila_actual + 3, [("A", "Controles evaluados", 0), ("B", residual.get("total_controles_evaluados", 0), 0)]),
+        _excel_row(fila_actual + 4, [("A", "Reducción promedio de probabilidad", 0), ("B", residual.get("reduccion_promedio_probabilidad", 0), 0)]),
+        _excel_row(fila_actual + 5, [("A", "Reducción promedio de impacto", 0), ("B", residual.get("reduccion_promedio_impacto", 0), 0)]),
+        _excel_row(fila_actual + 6, [("A", "Probabilidad residual", 0), ("B", residual.get("probabilidad_residual", 0), 0)]),
+        _excel_row(fila_actual + 7, [("A", "Impacto residual", 0), ("B", residual.get("impacto_residual", 0), 0)]),
+        _excel_row(fila_actual + 8, [("A", "Riesgo residual exacto", 0), ("B", residual.get("riesgo_residual_exacto", 0), 0)]),
+        _excel_row(fila_actual + 9, [("A", "Riesgo residual categorizado", 0), ("B", residual.get("riesgo_residual_categorizado", 0), 0), ("C", f"{residual.get('probabilidad_residual_categoria', '-')} / {residual.get('impacto_residual_categoria', '-')}", 0)]),
+    ])
+    fila_actual += 10
+
+    fila_actual += 1
+    merges.append(f"A{fila_actual}:F{fila_actual}")
+    filas.append(_excel_row(fila_actual, [("A", "Controles evaluados para residual", 2)]))
+    fila_actual += 1
+    filas.append(_excel_row(fila_actual, [("A", "Control", 3), ("B", "Solidez", 3), ("C", "Mit. prob.", 3), ("D", "Mit. impacto", 3), ("E", "Red. prob.", 3), ("F", "Red. impacto", 3)]))
+    fila_actual += 1
+    controles_residual = residual.get("controles_evaluados", [])
+    if controles_residual:
+        for control in controles_residual:
+            filas.append(_excel_row(fila_actual, [
+                ("A", control.get("nombre", ""), 0),
+                ("B", f"{control.get('solidez', '')} ({control.get('solidez_valor', 0)})", 0),
+                ("C", control.get("mitigacion_probabilidad", 0), 0),
+                ("D", control.get("mitigacion_impacto", 0), 0),
+                ("E", control.get("reduccion_real_probabilidad", 0), 0),
+                ("F", control.get("reduccion_real_impacto", 0), 0),
+            ]))
+            fila_actual += 1
+    else:
+        filas.append(_excel_row(fila_actual, [("A", "Sin controles evaluados", 0)]))
 
     merges_xml = ''.join(f'<mergeCell ref="{merge}"/>' for merge in merges)
     hoja = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

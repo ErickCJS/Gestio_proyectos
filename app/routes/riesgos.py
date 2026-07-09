@@ -192,7 +192,7 @@ def rutas(app, templates):
                 nombre,
                 descripcion or None,
                 impacto,
-                frecuencia,
+                probabilidad,
                 nivel
             ))
 
@@ -277,7 +277,7 @@ def rutas(app, templates):
                 nombre,
                 descripcion or None,
                 impacto,
-                frecuencia,
+                probabilidad,
                 nivel,
                 id
             ))

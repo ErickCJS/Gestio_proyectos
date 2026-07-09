@@ -29,13 +29,15 @@ document.addEventListener('DOMContentLoaded', function () {
                         };
                         const texto = (valor) => String(valor || '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
                         const formato = (valor) => texto(String(valor || '-').replaceAll('_', ' '));
+                        const numero = (valor) => Number(valor || 0).toLocaleString('es-PE', { maximumFractionDigits: 2 });
+                        const porcentaje = (valor) => `${numero(valor)}%`;
 
                         function riesgosFiltrados() {
                             const idProceso = procesoSelect.value;
-                            let filtrados = riesgos;
-                            if (idProceso) {
-                                filtrados = riesgos.filter((riesgo) => riesgo.procesos.some((p) => String(p.id_proceso) === idProceso));
+                            if (!idProceso) {
+                                return [];
                             }
+                            let filtrados = riesgos.filter((riesgo) => riesgo.procesos.some((p) => String(p.id_proceso) === idProceso));
                             if (cuadranteActivo) {
                                 filtrados = filtrados.filter((riesgo) => riesgo.impacto_valor === cuadranteActivo.impacto && riesgo.probabilidad_valor === cuadranteActivo.probabilidad);
                             }
@@ -136,37 +138,64 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         function renderDetalle(riesgo) {
                             if (!riesgo) {
-                                detalleTitulo.textContent = 'Seleccione un riesgo';
+                                const faltaProceso = !procesoSelect.value;
+                                detalleTitulo.textContent = faltaProceso ? 'Seleccione un proceso' : 'Seleccione un riesgo';
                                 detalleNivel.className = 'dash-level-pill';
                                 detalleNivel.textContent = '-';
                                 detalleContenido.className = 'dash-empty-state';
-                                detalleContenido.innerHTML = '<i class="bi bi-grid-3x3-gap"></i><strong>Seleccione un cuadrante o un riesgo</strong><span>El panel mostrará responsables, procesos y controles asociados.</span>';
+                                detalleContenido.innerHTML = faltaProceso
+                                    ? '<i class="bi bi-diagram-3"></i><strong>Seleccione un proceso</strong><span>Luego se listarán sus riesgos, responsables y controles asociados.</span>'
+                                    : '<i class="bi bi-grid-3x3-gap"></i><strong>Seleccione un cuadrante o un riesgo</strong><span>El panel mostrará responsables, procesos y controles asociados.</span>';
                                 return;
                             }
                             detalleTitulo.textContent = riesgo.nombre;
                             detalleNivel.className = `dash-level-pill nivel-riesgo-badge ${nivelClase[riesgo.nivel] || ''}`;
                             detalleNivel.textContent = riesgo.nivel;
                             detalleContenido.className = 'dash-detail-content';
+                            const residual = riesgo.riesgo_residual || {};
                             detalleContenido.innerHTML = `
                                 <div class="dash-detail-actions">
                                     <a class="btn btn-sm btn_primario" href="/dashboard/riesgo/${riesgo.id_riesgo}/exportar_excel">
                                         <i class="bi bi-file-earmark-spreadsheet me-2"></i>Exportar detalle
                                     </a>
                                 </div>
-                                <p>${texto(riesgo.descripcion || 'Sin descripción registrada.')}</p>
-                                <div class="dash-detail-metrics">
-                                    <span><b>${riesgo.puntaje}</b><small>Puntaje</small></span>
-                                    <span><b>${formato(riesgo.impacto)}</b><small>Impacto</small></span>
-                                    <span><b>${formato(riesgo.probabilidad)}</b><small>Probabilidad</small></span>
+                                <div class="dash-detail-description">
+                                    <span>${texto(riesgo.codigo)}</span>
+                                    <p>${texto(riesgo.descripcion || 'Sin descripción registrada.')}</p>
+                                </div>
+                                <div class="dash-risk-flow">
+                                    <article class="dash-flow-card inherente">
+                                        <small>Riesgo inherente</small>
+                                        <strong>${numero(residual.riesgo_inherente)}</strong>
+                                        <div><span>${porcentaje(residual.probabilidad_inicial)} prob.</span><span>${porcentaje(residual.impacto_inicial)} imp.</span></div>
+                                    </article>
+                                    <div class="dash-flow-arrow"><i class="bi bi-arrow-right"></i></div>
+                                    <article class="dash-flow-card residual">
+                                        <small>Riesgo residual</small>
+                                        <strong>${porcentaje(residual.probabilidad_residual)} / ${porcentaje(residual.impacto_residual)}</strong>
+                                        <div><span>${texto(residual.probabilidad_residual_categoria || '-')}</span><span>${texto(residual.impacto_residual_categoria || '-')}</span></div>
+                                    </article>
+                                </div>
+                                <div class="dash-residual-panel">
+                                    <div class="dash-section-title">
+                                        <h6>Reducción por controles</h6>
+                                        <span>${residual.total_controles_evaluados || 0} evaluado${(residual.total_controles_evaluados || 0) === 1 ? '' : 's'}</span>
+                                    </div>
+                                    <div class="dash-residual-grid compact">
+                                        <span><b>${porcentaje(residual.reduccion_promedio_probabilidad)}</b><small>Reducción prob.</small></span>
+                                        <span><b>${porcentaje(residual.reduccion_promedio_impacto)}</b><small>Reducción imp.</small></span>
+                                        <span><b>${porcentaje(residual.probabilidad_residual)}</b><small>Prob. residual</small></span>
+                                        <span><b>${porcentaje(residual.impacto_residual)}</b><small>Imp. residual</small></span>
+                                    </div>
                                 </div>
                                 <div class="dash-detail-section">
-                                    <h6>Procesos relacionados</h6>
+                                    <div class="dash-section-title"><h6>Procesos relacionados</h6></div>
                                     <div class="dash-chip-row">
                                         ${riesgo.procesos.length ? riesgo.procesos.map((p) => `<span>${texto(p.nombre)}</span>`).join('') : '<span>Sin proceso asignado</span>'}
                                     </div>
                                 </div>
                                 <div class="dash-detail-section">
-                                    <h6>Grupo responsable</h6>
+                                    <div class="dash-section-title"><h6>Grupo responsable</h6></div>
                                     <div class="dash-responsibles">
                                         ${riesgo.grupos.length ? riesgo.grupos.map((grupo) => `
                                             <article>
@@ -179,13 +208,17 @@ document.addEventListener('DOMContentLoaded', function () {
                                     </div>
                                 </div>
                                 <div class="dash-detail-section">
-                                    <h6>Controles asociados</h6>
+                                    <div class="dash-section-title"><h6>Controles</h6><span>${residual.total_controles_evaluados || 0}</span></div>
                                     <div class="dash-control-list">
                                         ${riesgo.controles.length ? riesgo.controles.map((control) => `
                                             <article>
-                                                <div><strong>${texto(control.nombre)}</strong><span>${texto(control.tipo)}</span></div>
+                                                <div><strong>${texto(control.nombre)}</strong><span>${texto(control.estado)}</span></div>
                                                 <p>${texto(control.descripcion || 'Sin descripción.')}</p>
-                                                <small>Solidez: ${texto(control.solidez_control)} · Estado: ${texto(control.estado)}</small>
+                                                <div class="dash-control-tags">
+                                                    <span>${texto(control.solidez_control)} (${numero(control.solidez_valor)})</span>
+                                                    <span>Prob. ${porcentaje(control.mitigacion_probabilidad)}</span>
+                                                    <span>Imp. ${porcentaje(control.mitigacion_impacto)}</span>
+                                                </div>
                                             </article>
                                         `).join('') : '<div class="dash-empty-mini">Este riesgo aún no tiene controles asociados.</div>'}
                                     </div>
@@ -196,7 +229,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         function renderTodo() {
                             const base = procesoSelect.value
                                 ? riesgos.filter((riesgo) => riesgo.procesos.some((p) => String(p.id_proceso) === procesoSelect.value))
-                                : riesgos;
+                                : [];
                             renderGrupos();
                             renderHeatmap(base);
                             renderLista(riesgosFiltrados());

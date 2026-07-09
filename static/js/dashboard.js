@@ -139,6 +139,40 @@ function construirFormularioRiesgo(config = {}) {
         </form>
     `;
 }
+const formatearPorcentajeControl = (valor) => {
+    if (valor === undefined || valor === null || valor === '') return '-';
+    const numero = Number(valor);
+    return Number.isFinite(numero) ? `${numero}%` : '-';
+}
+
+const actualizarMaximosRiesgoControl = (select) => {
+    if (!select) return;
+
+    const opcion = select.selectedOptions?.[0];
+    const probabilidad = opcion?.dataset?.maximoProbabilidad || '';
+    const impacto = opcion?.dataset?.maximoImpacto || '';
+    const salidaProbabilidad = document.getElementById('maximoRiesgoProbabilidad');
+    const salidaImpacto = document.getElementById('maximoRiesgoImpacto');
+    const salidaFormula = document.getElementById('maximoRiesgoFormula');
+    const valorProbabilidad = Number(probabilidad);
+    const valorImpacto = Number(impacto);
+
+    if (salidaProbabilidad) salidaProbabilidad.textContent = formatearPorcentajeControl(probabilidad);
+    if (salidaImpacto) salidaImpacto.textContent = formatearPorcentajeControl(impacto);
+    if (salidaFormula) {
+        salidaFormula.textContent = probabilidad !== '' && impacto !== '' && Number.isFinite(valorProbabilidad) && Number.isFinite(valorImpacto)
+            ? `${valorProbabilidad} x ${valorImpacto} / 100 = ${(valorProbabilidad * valorImpacto) / 100}`
+            : '-';
+    }
+}
+
+const inicializarMaximosRiesgoControl = () => {
+    const select = document.querySelector('[data-control-riesgo-select]');
+    if (!select) return;
+
+    select.addEventListener('change', () => actualizarMaximosRiesgoControl(select));
+    actualizarMaximosRiesgoControl(select);
+}
 const mostrar_modal = (tipo, data = {}) => {
     var html = '';
     var titulo = "";
@@ -407,7 +441,7 @@ const mostrar_modal = (tipo, data = {}) => {
             titulo = "Crear Control";
             const catalogos = window.catalogosControles || {};
             const riesgos = Array.isArray(catalogos.riesgos) ? catalogos.riesgos : [];
-            const opcionesRiesgos = riesgos.map(item => `<option value="${item.id_riesgo}">${item.nombre}</option>`).join('');
+            const opcionesRiesgos = riesgos.map(item => `<option value="${item.id_riesgo}" data-maximo-probabilidad="${item.maximo_baja_probabilidad ?? 100}" data-maximo-impacto="${item.maximo_baja_impacto ?? 100}">${item.nombre}</option>`).join('');
             botones = `
                 <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">Cancelar</button>
                 <button type="submit" class="btn btn-sm btn_primario" form="frm_crearcontrol">
@@ -419,7 +453,7 @@ const mostrar_modal = (tipo, data = {}) => {
                 <form id="frm_crearcontrol" method="post" action="/crear_control">
                     <div class="mb-3">
                         <label class="form-label modal-label">Riesgo asociado</label>
-                        <select class="form-select" name="id_riesgo" required>
+                        <select class="form-select" name="id_riesgo" data-control-riesgo-select required>
                             <option value="">Seleccione un riesgo</option>
                             ${opcionesRiesgos}
                         </select>
@@ -450,15 +484,13 @@ const mostrar_modal = (tipo, data = {}) => {
                             <option value="Muy alta">Muy alta</option>
                         </select>
                     </div>
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label modal-label">Máximo baja probabilidad (%)</label>
-                            <input type="number" class="form-control" name="maximo_baja_probabilidad" min="0" max="100" step="1" value="100">
+                    <div class="alert alert-light border mb-3">
+                        <div class="fw-semibold mb-2">Máximo heredado del riesgo</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <span class="badge bg-secondary">Probabilidad <strong id="maximoRiesgoProbabilidad">-</strong></span>
+                            <span class="badge bg-secondary">Impacto <strong id="maximoRiesgoImpacto">-</strong></span>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label modal-label">Máximo baja impacto (%)</label>
-                            <input type="number" class="form-control" name="maximo_baja_impacto" min="0" max="100" step="1" value="100">
-                        </div>
+                        <small class="text-secondary d-block mt-2" id="maximoRiesgoFormula">-</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label modal-label">Mitigación probabilidad (%)</label>
@@ -483,7 +515,7 @@ const mostrar_modal = (tipo, data = {}) => {
             titulo = `Editar Control #${String(data.id_control).padStart(3, '0')}`;
             const catalogosEd = window.catalogosControles || {};
             const riesgosEd = Array.isArray(catalogosEd.riesgos) ? catalogosEd.riesgos : [];
-            const opcionesRiesgosEd = riesgosEd.map(item => `<option value="${item.id_riesgo}" ${String(item.id_riesgo) === String(data.id_riesgo) ? 'selected' : ''}>${item.nombre}</option>`).join('');
+            const opcionesRiesgosEd = riesgosEd.map(item => `<option value="${item.id_riesgo}" data-maximo-probabilidad="${item.maximo_baja_probabilidad ?? 100}" data-maximo-impacto="${item.maximo_baja_impacto ?? 100}" ${String(item.id_riesgo) === String(data.id_riesgo) ? 'selected' : ''}>${item.nombre}</option>`).join('');
             botones = `
                 <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">Cancelar</button>
                 <button type="submit" class="btn btn-sm btn_primario" form="frm_editarcontrol">
@@ -495,7 +527,7 @@ const mostrar_modal = (tipo, data = {}) => {
                 <form id="frm_editarcontrol" method="post" action="/control/${data.id_control}/editar">
                     <div class="mb-3">
                         <label class="form-label modal-label">Riesgo asociado</label>
-                        <select class="form-select" name="id_riesgo" required>
+                        <select class="form-select" name="id_riesgo" data-control-riesgo-select required>
                             <option value="">Seleccione un riesgo</option>
                             ${opcionesRiesgosEd}
                         </select>
@@ -526,15 +558,13 @@ const mostrar_modal = (tipo, data = {}) => {
                             <option value="Muy alta" ${data.solidez_control === 'Muy alta' ? 'selected' : ''}>Muy alta</option>
                         </select>
                     </div>
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label modal-label">Máximo baja probabilidad (%)</label>
-                            <input type="number" class="form-control" name="maximo_baja_probabilidad" min="0" max="100" step="1" value="${data.maximo_baja_probabilidad ?? 100}">
+                    <div class="alert alert-light border mb-3">
+                        <div class="fw-semibold mb-2">Máximo heredado del riesgo</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <span class="badge bg-secondary">Probabilidad <strong id="maximoRiesgoProbabilidad">-</strong></span>
+                            <span class="badge bg-secondary">Impacto <strong id="maximoRiesgoImpacto">-</strong></span>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label modal-label">Máximo baja impacto (%)</label>
-                            <input type="number" class="form-control" name="maximo_baja_impacto" min="0" max="100" step="1" value="${data.maximo_baja_impacto ?? 100}">
-                        </div>
+                        <small class="text-secondary d-block mt-2" id="maximoRiesgoFormula">-</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label modal-label">Mitigación probabilidad (%)</label>
@@ -656,6 +686,7 @@ const mostrar_modal = (tipo, data = {}) => {
     modal_footer.innerHTML = botones;
     modal_cuerpo.innerHTML = html;
     modal_titulo.innerHTML = titulo;
+    inicializarMaximosRiesgoControl();
 
     const debeActualizarMapa = Boolean(
         document.getElementById('impacto') &&

@@ -16,24 +16,6 @@ def rutas(app, templates):
     tipos_control = {"Preventivo", "Detectivo", "Correctivo"}
     solidez_opciones = {"Muy baja", "Baja", "Media", "Alta", "Muy alta"}
 
-    def asegurar_tabla_control(db):
-        columnas = {
-            "maximo_baja_probabilidad": "DECIMAL(5,2) NOT NULL DEFAULT 100",
-            "maximo_baja_impacto": "DECIMAL(5,2) NOT NULL DEFAULT 100",
-        }
-        with db.cursor() as cursor:
-            cursor.execute("""
-                SELECT COLUMN_NAME
-                FROM INFORMATION_SCHEMA.COLUMNS
-                WHERE TABLE_SCHEMA = DATABASE()
-                  AND TABLE_NAME = 'control'
-            """)
-            existentes = {fila["COLUMN_NAME"] for fila in cursor.fetchall()}
-            for columna, definicion in columnas.items():
-                if columna not in existentes:
-                    cursor.execute(f"ALTER TABLE control ADD COLUMN {columna} {definicion}")
-        db.commit()
-
     def porcentaje_formulario(valor, defecto=0):
         try:
             numero = float(valor if valor not in (None, "") else defecto)
@@ -47,7 +29,25 @@ def rutas(app, templates):
                 """
                 SELECT
                     id_riesgo,
-                    nombre
+                    nombre,
+                    frecuencia AS probabilidad,
+                    impacto,
+                    CASE frecuencia
+                        WHEN 'RARA' THEN 20
+                        WHEN 'IMPROBABLE' THEN 40
+                        WHEN 'POSIBLE' THEN 60
+                        WHEN 'PROBABLE' THEN 80
+                        WHEN 'CASI_SEGURO' THEN 100
+                        ELSE 100
+                    END AS maximo_baja_probabilidad,
+                    CASE impacto
+                        WHEN 'INSIGNIFICANTE' THEN 20
+                        WHEN 'MENOR' THEN 40
+                        WHEN 'MODERADO' THEN 60
+                        WHEN 'MAYOR' THEN 80
+                        WHEN 'CATASTROFICO' THEN 100
+                        ELSE 100
+                    END AS maximo_baja_impacto
                 FROM riesgo
                 ORDER BY id_riesgo DESC
                 """
@@ -67,8 +67,22 @@ def rutas(app, templates):
                     c.estado,
                     c.fecha_creacion,
                     c.solidez_control,
-                    c.maximo_baja_probabilidad,
-                    c.maximo_baja_impacto,
+                    CASE r.frecuencia
+                        WHEN 'RARA' THEN 20
+                        WHEN 'IMPROBABLE' THEN 40
+                        WHEN 'POSIBLE' THEN 60
+                        WHEN 'PROBABLE' THEN 80
+                        WHEN 'CASI_SEGURO' THEN 100
+                        ELSE 100
+                    END AS maximo_baja_probabilidad,
+                    CASE r.impacto
+                        WHEN 'INSIGNIFICANTE' THEN 20
+                        WHEN 'MENOR' THEN 40
+                        WHEN 'MODERADO' THEN 60
+                        WHEN 'MAYOR' THEN 80
+                        WHEN 'CATASTROFICO' THEN 100
+                        ELSE 100
+                    END AS maximo_baja_impacto,
                     c.mitigacion_probabilidad,
                     c.mitigacion_impacto,
                     r.nombre AS riesgo_nombre
@@ -88,7 +102,6 @@ def rutas(app, templates):
         riesgos = []
 
         if db != "":
-            asegurar_tabla_control(db)
             riesgos = cargar_riesgos(db)
             controles = cargar_controles(db)
             db.close()
@@ -110,8 +123,6 @@ def rutas(app, templates):
         descripcion = datos.get("descripcion", "").strip()
         tipo = datos.get("tipo", "").strip()
         solidez_control = datos.get("solidez_control", "Media").strip()
-        maximo_baja_probabilidad = datos.get("maximo_baja_probabilidad", "100").strip()
-        maximo_baja_impacto = datos.get("maximo_baja_impacto", "100").strip()
         mitigacion_probabilidad = datos.get("mitigacion_probabilidad", "0").strip()
         mitigacion_impacto = datos.get("mitigacion_impacto", "0").strip()
         id_riesgo = datos.get("id_riesgo", "").strip()
@@ -126,8 +137,6 @@ def rutas(app, templates):
             set_flash(request, "warning", "Seleccione valores válidos para el control.")
             return response
 
-        maximo_baja_probabilidad = porcentaje_formulario(maximo_baja_probabilidad, 100)
-        maximo_baja_impacto = porcentaje_formulario(maximo_baja_impacto, 100)
         mitigacion_probabilidad = porcentaje_formulario(mitigacion_probabilidad, 0)
         mitigacion_impacto = porcentaje_formulario(mitigacion_impacto, 0)
 
@@ -137,7 +146,6 @@ def rutas(app, templates):
             return response
 
         with db.cursor() as cursor:
-            asegurar_tabla_control(db)
             cursor.execute(
                 """
                 INSERT INTO control (
@@ -145,21 +153,17 @@ def rutas(app, templates):
                     descripcion,
                     tipo,
                     solidez_control,
-                    maximo_baja_probabilidad,
-                    maximo_baja_impacto,
                     mitigacion_probabilidad,
                     mitigacion_impacto,
                     id_riesgo
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     nombre,
                     descripcion or None,
                     tipo,
                     solidez_control,
-                    maximo_baja_probabilidad,
-                    maximo_baja_impacto,
                     mitigacion_probabilidad,
                     mitigacion_impacto,
                     id_riesgo,
@@ -198,8 +202,6 @@ def rutas(app, templates):
         descripcion = datos.get('descripcion', '').strip()
         tipo = datos.get('tipo', '').strip()
         solidez_control = datos.get('solidez_control', 'Media').strip()
-        maximo_baja_probabilidad = datos.get('maximo_baja_probabilidad', '100').strip()
-        maximo_baja_impacto = datos.get('maximo_baja_impacto', '100').strip()
         mitigacion_probabilidad = datos.get('mitigacion_probabilidad', '0').strip()
         mitigacion_impacto = datos.get('mitigacion_impacto', '0').strip()
         id_riesgo = datos.get('id_riesgo', '').strip()
@@ -214,8 +216,6 @@ def rutas(app, templates):
             set_flash(request, 'warning', 'Seleccione valores válidos para el control.')
             return response
 
-        maximo_baja_probabilidad = porcentaje_formulario(maximo_baja_probabilidad, 100)
-        maximo_baja_impacto = porcentaje_formulario(maximo_baja_impacto, 100)
         mitigacion_probabilidad = porcentaje_formulario(mitigacion_probabilidad, 0)
         mitigacion_impacto = porcentaje_formulario(mitigacion_impacto, 0)
 
@@ -232,8 +232,6 @@ def rutas(app, templates):
                     descripcion=%s,
                     tipo=%s,
                     solidez_control=%s,
-                    maximo_baja_probabilidad=%s,
-                    maximo_baja_impacto=%s,
                     mitigacion_probabilidad=%s,
                     mitigacion_impacto=%s,
                     id_riesgo=%s
@@ -244,8 +242,6 @@ def rutas(app, templates):
                     descripcion or None,
                     tipo,
                     solidez_control,
-                    maximo_baja_probabilidad,
-                    maximo_baja_impacto,
                     mitigacion_probabilidad,
                     mitigacion_impacto,
                     id_riesgo,

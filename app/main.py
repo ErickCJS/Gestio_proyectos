@@ -90,25 +90,6 @@ def _categoria_residual(valor, categorias):
     return categorias[-1][1], categorias[-1][2]
 
 
-def asegurar_columnas_control_residual(db):
-    columnas = {
-        "maximo_baja_probabilidad": "DECIMAL(5,2) NOT NULL DEFAULT 100",
-        "maximo_baja_impacto": "DECIMAL(5,2) NOT NULL DEFAULT 100",
-    }
-    with db.cursor() as cursor:
-        cursor.execute("""
-            SELECT COLUMN_NAME
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = 'control'
-        """)
-        existentes = {fila["COLUMN_NAME"] for fila in cursor.fetchall()}
-        for columna, definicion in columnas.items():
-            if columna not in existentes:
-                cursor.execute(f"ALTER TABLE control ADD COLUMN {columna} {definicion}")
-    db.commit()
-
-
 def calcular_reporte_riesgo_inherente(riesgo):
     probabilidad_inicial = VALORES_PROBABILIDAD_RESIDUAL.get(riesgo.get("probabilidad"), 0)
     impacto_inicial = VALORES_IMPACTO_RESIDUAL.get(riesgo.get("impacto"), 0)
@@ -249,8 +230,6 @@ def obtener_metricas_dashboard():
         return metricas
 
     try:
-        asegurar_columnas_control_residual(db)
-
         with db.cursor() as cursor:
             for clave, tabla in (
                 ("grupos", "grupo"),
@@ -351,19 +330,34 @@ def obtener_metricas_dashboard():
 
             cursor.execute("""
                 SELECT
-                    id_control,
-                    id_riesgo,
-                    nombre,
-                    descripcion,
-                    tipo,
-                    solidez_control,
-                    COALESCE(maximo_baja_probabilidad, 100) AS maximo_baja_probabilidad,
-                    COALESCE(maximo_baja_impacto, 100) AS maximo_baja_impacto,
-                    mitigacion_probabilidad,
-                    mitigacion_impacto,
-                    estado
-                FROM control
-                ORDER BY id_control DESC
+                    c.id_control,
+                    c.id_riesgo,
+                    c.nombre,
+                    c.descripcion,
+                    c.tipo,
+                    c.solidez_control,
+                    CASE r.frecuencia
+                        WHEN 'RARA' THEN 20
+                        WHEN 'IMPROBABLE' THEN 40
+                        WHEN 'POSIBLE' THEN 60
+                        WHEN 'PROBABLE' THEN 80
+                        WHEN 'CASI_SEGURO' THEN 100
+                        ELSE 100
+                    END AS maximo_baja_probabilidad,
+                    CASE r.impacto
+                        WHEN 'INSIGNIFICANTE' THEN 20
+                        WHEN 'MENOR' THEN 40
+                        WHEN 'MODERADO' THEN 60
+                        WHEN 'MAYOR' THEN 80
+                        WHEN 'CATASTROFICO' THEN 100
+                        ELSE 100
+                    END AS maximo_baja_impacto,
+                    c.mitigacion_probabilidad,
+                    c.mitigacion_impacto,
+                    c.estado
+                FROM control c
+                INNER JOIN riesgo r ON r.id_riesgo = c.id_riesgo
+                ORDER BY c.id_control DESC
             """)
             controles_por_riesgo = {}
             for control in cursor.fetchall():

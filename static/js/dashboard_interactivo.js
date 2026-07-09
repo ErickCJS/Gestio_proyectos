@@ -10,11 +10,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         const heatScope = document.getElementById('dashHeatScope');
                         const filtroInherente = document.getElementById('dashFiltroInherente');
                         const filtroResidual = document.getElementById('dashFiltroResidual');
+                        const exportExcel = document.getElementById('dashExportExcel');
                         const riesgoResumen = document.getElementById('dashRiesgoResumen');
                         const detalleTitulo = document.getElementById('dashDetalleTitulo');
                         const detalleNivel = document.getElementById('dashDetalleNivel');
                         const detalleContenido = document.getElementById('dashDetalleContenido');
-                        if (!procesoSelect || !grupoWrap || !riskList || !heatMaps || !heatTitulo || !heatScope || !filtroInherente || !filtroResidual || !riesgoResumen || !detalleTitulo || !detalleNivel || !detalleContenido) {
+                        if (!procesoSelect || !grupoWrap || !riskList || !heatMaps || !heatTitulo || !heatScope || !filtroInherente || !filtroResidual || !exportExcel || !riesgoResumen || !detalleTitulo || !detalleNivel || !detalleContenido) {
                             return;
                         }
                         let riesgoActivo = null;
@@ -46,6 +47,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         const formato = (valor) => texto(String(valor || '-').replaceAll('_', ' '));
                         const numero = (valor) => Number(valor || 0).toLocaleString('es-PE', { maximumFractionDigits: 2 });
                         const porcentaje = (valor) => `${numero(valor)}%`;
+                        const valorNumerico = (valor) => Number(valor || 0);
+                        const diferenciaPorcentual = (inicial, residual) => Math.max(0, valorNumerico(inicial) - valorNumerico(residual));
                         const modosMapa = () => {
                             const modos = [];
                             if (filtroInherente.checked) modos.push('inherente');
@@ -243,6 +246,12 @@ document.addEventListener('DOMContentLoaded', function () {
                             detalleContenido.className = 'dash-detail-content';
                             const inherente = riesgo.riesgo_inherente || {};
                             const residual = riesgo.riesgo_residual || {};
+                            const probInicial = inherente.probabilidad_inicial ?? residual.probabilidad_inicial;
+                            const impInicial = inherente.impacto_inicial ?? residual.impacto_inicial;
+                            const probResidual = residual.probabilidad_residual;
+                            const impResidual = residual.impacto_residual;
+                            const bajaProb = diferenciaPorcentual(probInicial, probResidual);
+                            const bajaImp = diferenciaPorcentual(impInicial, impResidual);
                             detalleContenido.innerHTML = `
                                 <div class="dash-detail-actions">
                                     <a class="btn btn-sm btn_primario" href="/dashboard/riesgo/${riesgo.id_riesgo}/exportar_excel">
@@ -253,34 +262,24 @@ document.addEventListener('DOMContentLoaded', function () {
                                     <span>${texto(riesgo.codigo)}</span>
                                     <p>${texto(riesgo.descripcion || 'Sin descripción registrada.')}</p>
                                 </div>
-                                <div class="dash-risk-flow">
-                                    <article class="dash-flow-card inherente">
-                                        <small>Riesgo inherente</small>
-                                        <strong>${numero(inherente.riesgo_inherente_exacto ?? residual.riesgo_inherente)}</strong>
-                                        <div>
-                                            <span>${porcentaje(inherente.probabilidad_inicial ?? residual.probabilidad_inicial)} prob.</span>
-                                            <span>${porcentaje(inherente.impacto_inicial ?? residual.impacto_inicial)} imp.</span>
-                                            <span>${texto(inherente.nivel || riesgo.nivel)}</span>
-                                        </div>
-                                    </article>
-                                    <div class="dash-flow-arrow"><i class="bi bi-arrow-right"></i></div>
-                                    <article class="dash-flow-card residual">
-                                        <small>Riesgo residual</small>
-                                        <strong>${porcentaje(residual.probabilidad_residual)} / ${porcentaje(residual.impacto_residual)}</strong>
-                                        <div><span>${texto(residual.probabilidad_residual_categoria || '-')}</span><span>${texto(residual.impacto_residual_categoria || '-')}</span></div>
-                                    </article>
-                                </div>
-                                <div class="dash-residual-panel">
+                                <div class="dash-compare-panel">
                                     <div class="dash-section-title">
-                                        <h6>Indicadores clave</h6>
+                                        <h6>Baja por controles</h6>
                                         <span>${residual.total_controles_evaluados || 0} evaluado${(residual.total_controles_evaluados || 0) === 1 ? '' : 's'}</span>
                                     </div>
-                                    <div class="dash-residual-grid compact">
-                                        <span><b>${numero(inherente.riesgo_inherente_exacto ?? residual.riesgo_inherente)}</b><small>Inherente</small></span>
-                                        <span><b>${numero(residual.riesgo_residual_exacto)}</b><small>Residual</small></span>
-                                        <span><b>${porcentaje(residual.reduccion_promedio_probabilidad)}</b><small>Reducción prob.</small></span>
-                                        <span><b>${porcentaje(residual.reduccion_promedio_impacto)}</b><small>Reducción imp.</small></span>
+                                    <div class="dash-compare-grid">
+                                        <article>
+                                            <small>Probabilidad</small>
+                                            <div><strong>${porcentaje(probInicial)}</strong><i class="bi bi-arrow-right"></i><strong>${porcentaje(probResidual)}</strong></div>
+                                            <span>Bajó ${porcentaje(bajaProb)}</span>
+                                        </article>
+                                        <article>
+                                            <small>Impacto</small>
+                                            <div><strong>${porcentaje(impInicial)}</strong><i class="bi bi-arrow-right"></i><strong>${porcentaje(impResidual)}</strong></div>
+                                            <span>Bajó ${porcentaje(bajaImp)}</span>
+                                        </article>
                                     </div>
+                                    <p>Riesgo residual: ${numero(residual.riesgo_residual_exacto)} · ${texto(residual.probabilidad_residual_categoria || '-')} / ${texto(residual.impacto_residual_categoria || '-')}</p>
                                 </div>
                                 <div class="dash-detail-section">
                                     <div class="dash-section-title"><h6>Procesos relacionados</h6></div>
@@ -306,14 +305,21 @@ document.addEventListener('DOMContentLoaded', function () {
                                     <div class="dash-control-list">
                                         ${riesgo.controles.length ? riesgo.controles.map((control) => `
                                             <article>
-                                                <div><strong>${texto(control.nombre)}</strong><span>${texto(control.estado)}</span></div>
-                                                <p>${texto(control.descripcion || 'Sin descripción.')}</p>
-                                                <div class="dash-control-tags">
-                                                    <span>Máx. ${porcentaje(control.maximo_baja_probabilidad)} / ${porcentaje(control.maximo_baja_impacto)}</span>
-                                                    <span>Solidez ${texto(control.solidez_control)} (${porcentaje(control.solidez_valor)})</span>
-                                                    <span>Cap. ${porcentaje(control.capacidad_real_probabilidad)} / ${porcentaje(control.capacidad_real_impacto)}</span>
-                                                    <span>Mit. ${porcentaje(control.mitigacion_probabilidad)} / ${porcentaje(control.mitigacion_impacto)}</span>
-                                                    <span>Red. ${porcentaje(control.reduccion_real_probabilidad)} / ${porcentaje(control.reduccion_real_impacto)}</span>
+                                                <div class="dash-control-head">
+                                                    <strong>${texto(control.nombre)}</strong>
+                                                    <span>${texto(control.estado)}</span>
+                                                </div>
+                                                <p>${texto(control.descripcion || 'Control sin descripción.')}</p>
+                                                <div class="dash-control-simple">
+                                                    <div>
+                                                        <small>Baja probabilidad</small>
+                                                        <b>${porcentaje(control.reduccion_real_probabilidad)}</b>
+                                                    </div>
+                                                    <div>
+                                                        <small>Baja impacto</small>
+                                                        <b>${porcentaje(control.reduccion_real_impacto)}</b>
+                                                    </div>
+                                                    <em>Fuerza: ${texto(control.solidez_control)}</em>
                                                 </div>
                                             </article>
                                         `).join('') : '<div class="dash-empty-mini">Este riesgo aún no tiene controles asociados.</div>'}
@@ -327,6 +333,19 @@ document.addEventListener('DOMContentLoaded', function () {
                             renderGrupos();
                             renderHeatmap(base);
                             renderLista(riesgosFiltrados());
+                            actualizarExportExcel();
+                        }
+
+                        function actualizarExportExcel() {
+                            const params = new URLSearchParams();
+                            if (riesgoFijadoMapa && riesgoActivo) {
+                                params.set('id_riesgo', riesgoActivo.id_riesgo);
+                            } else if (procesoSelect.value) {
+                                params.set('id_proceso', procesoSelect.value);
+                            }
+                            exportExcel.href = params.toString()
+                                ? `/dashboard/exportar_excel?${params.toString()}`
+                                : '/dashboard/exportar_excel';
                         }
 
                         function riesgosBaseExportacion() {
@@ -385,8 +404,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         function exportarImagenComparativa() {
                             const lista = riesgosBaseExportacion();
                             const canvas = document.createElement('canvas');
-                            canvas.width = 920;
-                            canvas.height = 500;
+                            canvas.width = 980;
+                            canvas.height = 590;
                             const ctx = canvas.getContext('2d');
                             ctx.fillStyle = '#f8fafc';
                             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -399,13 +418,50 @@ document.addEventListener('DOMContentLoaded', function () {
                                 ? procesos.find((item) => String(item.id_proceso) === procesoSelect.value)?.nombre
                                 : 'Todos los procesos';
                             ctx.fillText(`${proceso || 'Todos los procesos'} · ${lista.length} riesgo${lista.length === 1 ? '' : 's'}`, 36, 68);
-                            dibujarMapa(ctx, contarMapa(lista, 'inherente'), 36, 110, 'Riesgo inherente');
-                            dibujarMapa(ctx, contarMapa(lista, 'residual'), 494, 110, 'Riesgo residual');
+                            const totalControles = lista.reduce((total, riesgo) => total + (riesgo.controles || []).length, 0);
+                            const foco = riesgoFijadoMapa && riesgoActivo ? riesgoActivo : null;
+                            const inherente = foco?.riesgo_inherente || {};
+                            const residual = foco?.riesgo_residual || {};
+                            const probInicial = inherente.probabilidad_inicial ?? residual.probabilidad_inicial;
+                            const impInicial = inherente.impacto_inicial ?? residual.impacto_inicial;
+                            const probResidual = residual.probabilidad_residual;
+                            const impResidual = residual.impacto_residual;
+                            const tarjetas = foco
+                                ? [
+                                    ['Riesgo', `${foco.codigo} · ${foco.nombre}`],
+                                    ['Probabilidad', `${porcentaje(probInicial)} -> ${porcentaje(probResidual)} (-${porcentaje(diferenciaPorcentual(probInicial, probResidual))})`],
+                                    ['Impacto', `${porcentaje(impInicial)} -> ${porcentaje(impResidual)} (-${porcentaje(diferenciaPorcentual(impInicial, impResidual))})`],
+                                    ['Residual', `${numero(residual.riesgo_residual_exacto)} · ${(foco.controles || []).length} control${(foco.controles || []).length === 1 ? '' : 'es'}`]
+                                ]
+                                : [
+                                    ['Riesgos', String(lista.length)],
+                                    ['Controles', String(totalControles)],
+                                    ['Proceso', proceso || 'Todos'],
+                                    ['Vista', modosMapa().map(etiquetaModo).join(' + ')]
+                                ];
+                            tarjetas.forEach(([label, value], index) => {
+                                const x = 36 + index * 226;
+                                ctx.fillStyle = '#ffffff';
+                                ctx.beginPath();
+                                ctx.roundRect(x, 88, 204, 58, 12);
+                                ctx.fill();
+                                ctx.strokeStyle = '#e2e8f0';
+                                ctx.stroke();
+                                ctx.fillStyle = '#64748b';
+                                ctx.font = '700 11px Inter, Arial';
+                                ctx.fillText(label.toUpperCase(), x + 14, 110);
+                                ctx.fillStyle = '#111827';
+                                ctx.font = '800 15px Inter, Arial';
+                                const textoValor = String(value || '-');
+                                ctx.fillText(textoValor.length > 26 ? `${textoValor.slice(0, 25)}...` : textoValor, x + 14, 132);
+                            });
+                            dibujarMapa(ctx, contarMapa(lista, 'inherente'), 36, 195, 'Riesgo inherente');
+                            dibujarMapa(ctx, contarMapa(lista, 'residual'), 530, 195, 'Riesgo residual');
                             ctx.fillStyle = '#64748b';
                             ctx.font = '600 12px Inter, Arial';
-                            ctx.fillText('Escala: probabilidad vertical e impacto horizontal. El número indica cantidad de riesgos por celda.', 36, 474);
+                            ctx.fillText('Escala: probabilidad vertical e impacto horizontal. El número indica cantidad de riesgos por celda.', 36, 560);
                             const link = document.createElement('a');
-                            link.download = 'comparacion_mapa_riesgos.png';
+                            link.download = foco ? `${foco.codigo}_comparacion_riesgo.png` : 'comparacion_mapa_riesgos.png';
                             link.href = canvas.toDataURL('image/png');
                             link.click();
                         }

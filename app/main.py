@@ -747,12 +747,50 @@ def dashboard(request: Request):
 @app.get('/dashboard/exportar_excel')
 def exportar_dashboard_excel(request: Request):
     datos = obtener_metricas_dashboard()
+    id_riesgo = request.query_params.get("id_riesgo")
+    id_proceso = request.query_params.get("id_proceso")
+
+    riesgos_exportar = datos.get("riesgos_detalle", [])
+    nombre_archivo = "dashboard_riesgos.xlsx"
+
+    if id_riesgo:
+        riesgos_exportar = [
+            riesgo for riesgo in riesgos_exportar
+            if str(riesgo.get("id_riesgo")) == str(id_riesgo)
+        ]
+        if riesgos_exportar:
+            nombre_base = re.sub(
+                r"[^A-Za-z0-9_-]+",
+                "_",
+                riesgos_exportar[0].get("codigo", "riesgo") + "_" + riesgos_exportar[0].get("nombre", "")
+            ).strip("_")
+            nombre_archivo = f"{nombre_base or 'riesgo'}.xlsx"
+    elif id_proceso:
+        riesgos_exportar = [
+            riesgo for riesgo in riesgos_exportar
+            if any(str(proceso.get("id_proceso")) == str(id_proceso) for proceso in riesgo.get("procesos", []))
+        ]
+        nombre_archivo = f"dashboard_proceso_{id_proceso}.xlsx"
+
+    niveles_exportar = []
+    for nivel in ("MUY BAJO", "BAJO", "MEDIO", "ALTO", "EXTREMO"):
+        total = sum(1 for riesgo in riesgos_exportar if riesgo.get("nivel") == nivel)
+        if total:
+            niveles_exportar.append({"nivel": nivel, "total": total})
+
+    datos = {
+        **datos,
+        "riesgos": len(riesgos_exportar),
+        "controles": sum(len(riesgo.get("controles", [])) for riesgo in riesgos_exportar),
+        "niveles": niveles_exportar,
+        "riesgos_detalle": riesgos_exportar,
+    }
     contenido = construir_excel_dashboard(datos)
     return Response(
         content=contenido,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition": 'attachment; filename="dashboard_riesgos.xlsx"'
+            "Content-Disposition": f'attachment; filename="{nombre_archivo}"'
         }
     )
 

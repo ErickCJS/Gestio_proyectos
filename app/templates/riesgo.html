@@ -101,14 +101,14 @@
                                         onclick="event.stopPropagation();verProcesos({{ riesgo.id_riesgo }})">
                                         <i class="bi bi-diagram-3 text-primary"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-secondary"
+                                    <button class="btn btn-sm btn-outline-warning"
                                         data-id-riesgo="{{ riesgo.id_riesgo }}"
                                         data-nombre="{{ (riesgo.nombre or '')|e }}"
                                         data-descripcion="{{ (riesgo.descripcion or '')|e }}"
                                         data-impacto="{{ riesgo.impacto }}"
                                         data-probabilidad="{{ riesgo.probabilidad }}"
                                         onclick="event.stopPropagation();abrirEditarRiesgo(this)">
-                                        <i class="bi bi-pencil-square"></i>
+                                        <i class="bi bi-pencil-square text-warning"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger"
                                         onclick="event.stopPropagation();eliminarRiesgo({{ riesgo.id_riesgo }})">

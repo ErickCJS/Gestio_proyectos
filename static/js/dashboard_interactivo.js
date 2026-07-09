@@ -5,12 +5,20 @@ document.addEventListener('DOMContentLoaded', function () {
                         const procesoSelect = document.getElementById('dashProcesoFiltro');
                         const grupoWrap = document.getElementById('dashGrupoFiltro');
                         const riskList = document.getElementById('dashRiskList');
-                        const heatGrid = document.getElementById('dashHeatGrid');
+                        const heatMaps = document.getElementById('dashHeatMaps');
+                        const heatTitulo = document.getElementById('dashHeatTitulo');
+                        const heatScope = document.getElementById('dashHeatScope');
+                        const filtroInherente = document.getElementById('dashFiltroInherente');
+                        const filtroResidual = document.getElementById('dashFiltroResidual');
                         const riesgoResumen = document.getElementById('dashRiesgoResumen');
                         const detalleTitulo = document.getElementById('dashDetalleTitulo');
                         const detalleNivel = document.getElementById('dashDetalleNivel');
                         const detalleContenido = document.getElementById('dashDetalleContenido');
+                        if (!procesoSelect || !grupoWrap || !riskList || !heatMaps || !heatTitulo || !heatScope || !filtroInherente || !filtroResidual || !riesgoResumen || !detalleTitulo || !detalleNivel || !detalleContenido) {
+                            return;
+                        }
                         let riesgoActivo = null;
+                        let riesgoFijadoMapa = false;
                         let cuadranteActivo = null;
 
                         const colores = [
@@ -20,6 +28,13 @@ document.addEventListener('DOMContentLoaded', function () {
                             ['#22c55e','#22c55e','#fbbf24','#fbbf24','#f97316'],
                             ['#d9ead3','#22c55e','#22c55e','#22c55e','#fbbf24']
                         ];
+                        const ordenNivel = {
+                            EXTREMO: 5,
+                            ALTO: 4,
+                            MEDIO: 3,
+                            BAJO: 2,
+                            'MUY BAJO': 1
+                        };
                         const nivelClase = {
                             'MUY BAJO': 'nivel-muy-bajo',
                             BAJO: 'nivel-bajo',
@@ -31,24 +46,54 @@ document.addEventListener('DOMContentLoaded', function () {
                         const formato = (valor) => texto(String(valor || '-').replaceAll('_', ' '));
                         const numero = (valor) => Number(valor || 0).toLocaleString('es-PE', { maximumFractionDigits: 2 });
                         const porcentaje = (valor) => `${numero(valor)}%`;
+                        const modosMapa = () => {
+                            const modos = [];
+                            if (filtroInherente.checked) modos.push('inherente');
+                            if (filtroResidual.checked) modos.push('residual');
+                            return modos.length ? modos : ['inherente'];
+                        };
+                        const etiquetaModo = (tipo) => tipo === 'residual' ? 'Residual' : 'Inherente';
+
+                        function coordRiesgo(riesgo, tipo) {
+                            if (tipo === 'residual') {
+                                const residual = riesgo.riesgo_residual || {};
+                                return {
+                                    impacto: Math.max(1, Math.min(5, Math.round(Number(residual.impacto_residual_categorizado || 20) / 20))),
+                                    probabilidad: Math.max(1, Math.min(5, Math.round(Number(residual.probabilidad_residual_categorizada || 20) / 20)))
+                                };
+                            }
+                            return {
+                                impacto: Number(riesgo.impacto_valor || 0),
+                                probabilidad: Number(riesgo.probabilidad_valor || 0)
+                            };
+                        }
+
+                        function riesgosBaseProceso() {
+                            const idProceso = procesoSelect.value;
+                            return idProceso
+                                ? riesgos.filter((riesgo) => riesgo.procesos.some((p) => String(p.id_proceso) === idProceso))
+                                : [...riesgos];
+                        }
+
+                        function riesgoEnCuadrante(riesgo, cuadrante) {
+                            if (!cuadrante) return true;
+                            const coord = coordRiesgo(riesgo, cuadrante.tipo);
+                            return coord.impacto === cuadrante.impacto && coord.probabilidad === cuadrante.probabilidad;
+                        }
 
                         function riesgosFiltrados() {
-                            const idProceso = procesoSelect.value;
-                            if (!idProceso) {
-                                return [];
-                            }
-                            let filtrados = riesgos.filter((riesgo) => riesgo.procesos.some((p) => String(p.id_proceso) === idProceso));
+                            let filtrados = riesgosBaseProceso();
                             if (cuadranteActivo) {
-                                filtrados = filtrados.filter((riesgo) => riesgo.impacto_valor === cuadranteActivo.impacto && riesgo.probabilidad_valor === cuadranteActivo.probabilidad);
+                                filtrados = filtrados.filter((riesgo) => riesgoEnCuadrante(riesgo, cuadranteActivo));
                             }
-                            return filtrados;
+                            return filtrados.sort((a, b) => (ordenNivel[b.nivel] || 0) - (ordenNivel[a.nivel] || 0) || b.puntaje - a.puntaje);
                         }
 
                         function renderGrupos() {
                             const idProceso = procesoSelect.value;
                             if (!idProceso) {
                                 grupoWrap.className = 'dash-group-filter disabled';
-                                grupoWrap.innerHTML = 'Seleccione un proceso';
+                                grupoWrap.innerHTML = 'Todos los responsables';
                                 return;
                             }
                             const proceso = procesos.find((item) => String(item.id_proceso) === idProceso);
@@ -75,37 +120,79 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
 
                         function renderHeatmap(baseRiesgos) {
+                            const modos = modosMapa();
+                            const riesgosMapa = riesgoFijadoMapa && riesgoActivo ? [riesgoActivo] : baseRiesgos;
+                            heatTitulo.textContent = modos.length === 2 ? 'Comparación de mapas' : `Riesgo ${etiquetaModo(modos[0]).toLowerCase()}`;
+                            heatScope.textContent = riesgoFijadoMapa && riesgoActivo ? riesgoActivo.codigo : `${riesgosMapa.length} riesgo${riesgosMapa.length === 1 ? '' : 's'}`;
+                            heatMaps.className = `dash-heat-maps ${modos.length === 2 ? 'dual' : 'single'}`;
+                            heatMaps.innerHTML = modos.map((tipo) => construirHeatmap(riesgosMapa, tipo)).join('');
+                            heatMaps.querySelectorAll('.dash-heat-cell').forEach((cell) => {
+                                cell.addEventListener('click', () => {
+                                    const impacto = Number(cell.dataset.impacto);
+                                    const probabilidad = Number(cell.dataset.probabilidad);
+                                    const tipo = cell.dataset.tipo;
+                                    const mismo = cuadranteActivo && cuadranteActivo.tipo === tipo && cuadranteActivo.impacto === impacto && cuadranteActivo.probabilidad === probabilidad;
+                                    cuadranteActivo = mismo ? null : { tipo, impacto, probabilidad };
+                                    riesgoActivo = null;
+                                    riesgoFijadoMapa = false;
+                                    renderTodo();
+                                });
+                            });
+                        }
+
+                        function construirHeatmap(baseRiesgos, tipo) {
                             const conteo = Array.from({ length: 5 }, () => Array(5).fill(0));
                             baseRiesgos.forEach((riesgo) => {
-                                const x = riesgo.impacto_valor - 1;
-                                const y = 5 - riesgo.probabilidad_valor;
-                                if (x >= 0 && y >= 0) conteo[y][x] += 1;
+                                const coord = coordRiesgo(riesgo, tipo);
+                                const x = coord.impacto - 1;
+                                const y = 5 - coord.probabilidad;
+                                if (x >= 0 && x < 5 && y >= 0 && y < 5) conteo[y][x] += 1;
                             });
-                            heatGrid.innerHTML = '';
+                            let celdas = '';
                             for (let y = 0; y < 5; y++) {
                                 for (let x = 0; x < 5; x++) {
                                     const probabilidad = 5 - y;
                                     const impacto = x + 1;
                                     const valor = conteo[y][x];
-                                    const cell = document.createElement('button');
-                                    cell.type = 'button';
-                                    cell.className = 'dash-heat-cell';
-                                    cell.style.background = colores[y][x];
-                                    cell.style.color = (colores[y][x] === '#d9ead3' || colores[y][x] === '#fbbf24') ? '#111827' : '#fff';
                                     const etiquetaCelda = 'Probabilidad ' + probabilidad + ', impacto ' + impacto + (valor ? ', ' + valor + ' riesgo' + (valor === 1 ? '' : 's') : '');
-                                    cell.setAttribute('aria-label', etiquetaCelda);
-                                    cell.title = etiquetaCelda;
-                                    cell.innerHTML = valor ? '<b>' + valor + '</b>' : '';
-                                    cell.classList.toggle('selected', cuadranteActivo && cuadranteActivo.impacto === impacto && cuadranteActivo.probabilidad === probabilidad);
-                                    cell.addEventListener('click', () => {
-                                        const mismo = cuadranteActivo && cuadranteActivo.impacto === impacto && cuadranteActivo.probabilidad === probabilidad;
-                                        cuadranteActivo = mismo ? null : { impacto, probabilidad };
-                                        riesgoActivo = null;
-                                        renderTodo();
-                                    });
-                                    heatGrid.appendChild(cell);
+                                    const selected = cuadranteActivo && cuadranteActivo.tipo === tipo && cuadranteActivo.impacto === impacto && cuadranteActivo.probabilidad === probabilidad;
+                                    celdas += `
+                                        <button type="button"
+                                            class="dash-heat-cell ${selected ? 'selected' : ''}"
+                                            style="background:${colores[y][x]};color:${(colores[y][x] === '#d9ead3' || colores[y][x] === '#fbbf24') ? '#111827' : '#fff'}"
+                                            data-tipo="${tipo}"
+                                            data-impacto="${impacto}"
+                                            data-probabilidad="${probabilidad}"
+                                            aria-label="${texto(etiquetaCelda)}"
+                                            title="${texto(etiquetaCelda)}">
+                                            ${valor ? '<b>' + valor + '</b>' : ''}
+                                        </button>
+                                    `;
                                 }
                             }
+                            return `
+                                <article class="dash-heat-map-card">
+                                    <div class="dash-heat-map-title">
+                                        <strong>${etiquetaModo(tipo)}</strong>
+                                        <span>${baseRiesgos.length} riesgo${baseRiesgos.length === 1 ? '' : 's'}</span>
+                                    </div>
+                                    <div class="dash-heat-layout">
+                                        <div class="dash-heat-axis-y">Probabilidad</div>
+                                        <div>
+                                            <div class="dash-heat-axis-x">Impacto</div>
+                                            <div class="dash-heat-xlabels">
+                                                <span>Ins.</span><span>Men.</span><span>Mod.</span><span>May.</span><span>Cat.</span>
+                                            </div>
+                                            <div class="dash-heat-body">
+                                                <div class="dash-heat-ylabels">
+                                                    <span>C.S.</span><span>Prob.</span><span>Pos.</span><span>Imp.</span><span>Rar.</span>
+                                                </div>
+                                                <div class="dash-heat-grid">${celdas}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </article>
+                            `;
                         }
 
                         function renderLista(lista) {
@@ -119,18 +206,22 @@ document.addEventListener('DOMContentLoaded', function () {
                                 riesgoActivo = lista[0];
                             }
                             riskList.innerHTML = lista.map((riesgo) => `
-                                <button type="button" class="dash-risk-item ${riesgoActivo && riesgoActivo.id_riesgo === riesgo.id_riesgo ? 'active' : ''}" data-id="${riesgo.id_riesgo}">
+                                <button type="button" class="dash-risk-item ${riesgoActivo && riesgoActivo.id_riesgo === riesgo.id_riesgo ? 'active' : ''} ${riesgoFijadoMapa && riesgoActivo && riesgoActivo.id_riesgo === riesgo.id_riesgo ? 'map-focus' : ''}" data-id="${riesgo.id_riesgo}">
                                     <span class="dash-risk-code">${texto(riesgo.codigo)}</span>
                                     <strong>${texto(riesgo.nombre)}</strong>
                                     <small>${texto(riesgo.descripcion || 'Sin descripción')}</small>
                                     <em class="nivel-riesgo-badge ${nivelClase[riesgo.nivel] || ''}">${texto(riesgo.nivel)}</em>
+                                    ${riesgoFijadoMapa && riesgoActivo && riesgoActivo.id_riesgo === riesgo.id_riesgo ? '<i class="bi bi-crosshair dash-map-focus-icon"></i>' : ''}
                                 </button>
                             `).join('');
                             riskList.querySelectorAll('.dash-risk-item').forEach((btn) => {
                                 btn.addEventListener('click', () => {
-                                    riesgoActivo = lista.find((riesgo) => String(riesgo.id_riesgo) === btn.dataset.id);
-                                    renderLista(lista);
-                                    renderDetalle(riesgoActivo);
+                                    const seleccionado = lista.find((riesgo) => String(riesgo.id_riesgo) === btn.dataset.id);
+                                    const mismo = riesgoFijadoMapa && riesgoActivo && seleccionado && riesgoActivo.id_riesgo === seleccionado.id_riesgo;
+                                    riesgoActivo = seleccionado;
+                                    riesgoFijadoMapa = !mismo;
+                                    cuadranteActivo = null;
+                                    renderTodo();
                                 });
                             });
                             renderDetalle(riesgoActivo);
@@ -139,13 +230,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         function renderDetalle(riesgo) {
                             if (!riesgo) {
                                 const faltaProceso = !procesoSelect.value;
-                                detalleTitulo.textContent = faltaProceso ? 'Seleccione un proceso' : 'Seleccione un riesgo';
+                                detalleTitulo.textContent = 'Seleccione un riesgo';
                                 detalleNivel.className = 'dash-level-pill';
                                 detalleNivel.textContent = '-';
                                 detalleContenido.className = 'dash-empty-state';
-                                detalleContenido.innerHTML = faltaProceso
-                                    ? '<i class="bi bi-diagram-3"></i><strong>Seleccione un proceso</strong><span>Luego se listarán sus riesgos, responsables y controles asociados.</span>'
-                                    : '<i class="bi bi-grid-3x3-gap"></i><strong>Seleccione un cuadrante o un riesgo</strong><span>El panel mostrará responsables, procesos y controles asociados.</span>';
+                                detalleContenido.innerHTML = '<i class="bi bi-grid-3x3-gap"></i><strong>Seleccione un cuadrante o un riesgo</strong><span>El panel mostrará solo la información clave para decidir.</span>';
                                 return;
                             }
                             detalleTitulo.textContent = riesgo.nombre;
@@ -181,28 +270,16 @@ document.addEventListener('DOMContentLoaded', function () {
                                         <div><span>${texto(residual.probabilidad_residual_categoria || '-')}</span><span>${texto(residual.impacto_residual_categoria || '-')}</span></div>
                                     </article>
                                 </div>
-                                <div class="dash-inherent-panel">
-                                    <div class="dash-section-title">
-                                        <h6>Evaluación inherente</h6>
-                                        <span>Matriz 5x5</span>
-                                    </div>
-                                    <div class="dash-residual-grid compact">
-                                        <span><b>${porcentaje(inherente.probabilidad_inicial ?? residual.probabilidad_inicial)}</b><small>${texto(inherente.probabilidad_categoria || 'Probabilidad')}</small></span>
-                                        <span><b>${porcentaje(inherente.impacto_inicial ?? residual.impacto_inicial)}</b><small>${texto(inherente.impacto_categoria || 'Impacto')}</small></span>
-                                        <span><b>${numero(inherente.riesgo_inherente_exacto ?? residual.riesgo_inherente)}</b><small>Inherente exacto</small></span>
-                                        <span><b>${numero(inherente.riesgo_inherente_categorizado ?? residual.riesgo_inherente)}</b><small>Inherente categ.</small></span>
-                                    </div>
-                                </div>
                                 <div class="dash-residual-panel">
                                     <div class="dash-section-title">
-                                        <h6>Reducción por controles</h6>
+                                        <h6>Indicadores clave</h6>
                                         <span>${residual.total_controles_evaluados || 0} evaluado${(residual.total_controles_evaluados || 0) === 1 ? '' : 's'}</span>
                                     </div>
                                     <div class="dash-residual-grid compact">
+                                        <span><b>${numero(inherente.riesgo_inherente_exacto ?? residual.riesgo_inherente)}</b><small>Inherente</small></span>
+                                        <span><b>${numero(residual.riesgo_residual_exacto)}</b><small>Residual</small></span>
                                         <span><b>${porcentaje(residual.reduccion_promedio_probabilidad)}</b><small>Reducción prob.</small></span>
                                         <span><b>${porcentaje(residual.reduccion_promedio_impacto)}</b><small>Reducción imp.</small></span>
-                                        <span><b>${porcentaje(residual.probabilidad_residual)}</b><small>Prob. residual</small></span>
-                                        <span><b>${porcentaje(residual.impacto_residual)}</b><small>Imp. residual</small></span>
                                     </div>
                                 </div>
                                 <div class="dash-detail-section">
@@ -246,18 +323,112 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
 
                         function renderTodo() {
-                            const base = procesoSelect.value
-                                ? riesgos.filter((riesgo) => riesgo.procesos.some((p) => String(p.id_proceso) === procesoSelect.value))
-                                : [];
+                            const base = riesgosBaseProceso();
                             renderGrupos();
                             renderHeatmap(base);
                             renderLista(riesgosFiltrados());
                         }
 
+                        function riesgosBaseExportacion() {
+                            if (riesgoFijadoMapa && riesgoActivo) {
+                                return [riesgoActivo];
+                            }
+                            const idProceso = procesoSelect.value;
+                            return idProceso
+                                ? riesgos.filter((riesgo) => riesgo.procesos.some((p) => String(p.id_proceso) === idProceso))
+                                : riesgos;
+                        }
+
+                        function contarMapa(lista, tipo) {
+                            const conteo = Array.from({ length: 5 }, () => Array(5).fill(0));
+                            lista.forEach((riesgo) => {
+                                const coord = coordRiesgo(riesgo, tipo);
+                                const x = coord.impacto - 1;
+                                const y = 5 - coord.probabilidad;
+                                if (x >= 0 && x < 5 && y >= 0 && y < 5) conteo[y][x] += 1;
+                            });
+                            return conteo;
+                        }
+
+                        function dibujarMapa(ctx, conteo, x0, y0, titulo) {
+                            const celda = 58;
+                            const gap = 5;
+                            const labelsX = ['Ins.', 'Men.', 'Mod.', 'May.', 'Cat.'];
+                            const labelsY = ['C.S.', 'Prob.', 'Pos.', 'Imp.', 'Rar.'];
+                            ctx.fillStyle = '#111827';
+                            ctx.font = '700 20px Inter, Arial';
+                            ctx.fillText(titulo, x0, y0);
+                            ctx.font = '700 12px Inter, Arial';
+                            ctx.fillStyle = '#64748b';
+                            labelsX.forEach((label, i) => ctx.fillText(label, x0 + 46 + i * (celda + gap) + 15, y0 + 32));
+                            labelsY.forEach((label, i) => ctx.fillText(label, x0, y0 + 58 + i * (celda + gap) + 34));
+                            for (let y = 0; y < 5; y++) {
+                                for (let x = 0; x < 5; x++) {
+                                    const cx = x0 + 46 + x * (celda + gap);
+                                    const cy = y0 + 44 + y * (celda + gap);
+                                    ctx.fillStyle = colores[y][x];
+                                    ctx.beginPath();
+                                    ctx.roundRect(cx, cy, celda, celda, 10);
+                                    ctx.fill();
+                                    const valor = conteo[y][x];
+                                    if (valor) {
+                                        ctx.fillStyle = '#111827';
+                                        ctx.font = '800 20px Inter, Arial';
+                                        ctx.textAlign = 'center';
+                                        ctx.fillText(String(valor), cx + celda / 2, cy + 36);
+                                        ctx.textAlign = 'left';
+                                    }
+                                }
+                            }
+                        }
+
+                        function exportarImagenComparativa() {
+                            const lista = riesgosBaseExportacion();
+                            const canvas = document.createElement('canvas');
+                            canvas.width = 920;
+                            canvas.height = 500;
+                            const ctx = canvas.getContext('2d');
+                            ctx.fillStyle = '#f8fafc';
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.fillStyle = '#111827';
+                            ctx.font = '800 26px Inter, Arial';
+                            ctx.fillText('Comparación de mapas de riesgo', 36, 44);
+                            ctx.fillStyle = '#64748b';
+                            ctx.font = '500 14px Inter, Arial';
+                            const proceso = procesoSelect.value
+                                ? procesos.find((item) => String(item.id_proceso) === procesoSelect.value)?.nombre
+                                : 'Todos los procesos';
+                            ctx.fillText(`${proceso || 'Todos los procesos'} · ${lista.length} riesgo${lista.length === 1 ? '' : 's'}`, 36, 68);
+                            dibujarMapa(ctx, contarMapa(lista, 'inherente'), 36, 110, 'Riesgo inherente');
+                            dibujarMapa(ctx, contarMapa(lista, 'residual'), 494, 110, 'Riesgo residual');
+                            ctx.fillStyle = '#64748b';
+                            ctx.font = '600 12px Inter, Arial';
+                            ctx.fillText('Escala: probabilidad vertical e impacto horizontal. El número indica cantidad de riesgos por celda.', 36, 474);
+                            const link = document.createElement('a');
+                            link.download = 'comparacion_mapa_riesgos.png';
+                            link.href = canvas.toDataURL('image/png');
+                            link.click();
+                        }
+
                         procesoSelect.addEventListener('change', () => {
                             cuadranteActivo = null;
                             riesgoActivo = null;
+                            riesgoFijadoMapa = false;
                             renderTodo();
                         });
+                        [filtroInherente, filtroResidual].forEach((input) => {
+                            input.addEventListener('change', () => {
+                                if (!filtroInherente.checked && !filtroResidual.checked) {
+                                    input.checked = true;
+                                }
+                                document.querySelectorAll('.dash-risk-toggle').forEach((label) => {
+                                    const control = label.querySelector('input');
+                                    label.classList.toggle('active', Boolean(control?.checked));
+                                });
+                                cuadranteActivo = null;
+                                renderTodo();
+                            });
+                        });
+                        document.getElementById('dashExportImagen')?.addEventListener('click', exportarImagenComparativa);
                         renderTodo();
                     });

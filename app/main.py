@@ -616,6 +616,103 @@ def construir_excel_detalle_riesgo(riesgo):
         for nombre, contenido in archivos.items():
             paquete.writestr(nombre, contenido)
     return salida.getvalue()
+
+
+def construir_excel_dashboard(datos):
+    filas = []
+    merges = ["A1:O1", "A3:O3", "A9:O9"]
+    fila = 1
+
+    filas.append(_excel_row(fila, [("A", "MAGERISK - Dashboard detallado", 1)]))
+    fila += 1
+    filas.append(_excel_row(fila, [("A", "Exportación consolidada de riesgos, controles, responsables, riesgo inherente y residual.", 4)]))
+    fila += 2
+    filas.append(_excel_row(fila, [("A", "Resumen", 2)]))
+    fila += 1
+    filas.append(_excel_row(fila, [
+        ("A", "Riesgos", 3), ("B", datos.get("riesgos", 0), 0),
+        ("D", "Controles", 3), ("E", datos.get("controles", 0), 0),
+        ("G", "Procesos", 3), ("H", datos.get("procesos", 0), 0),
+        ("J", "Grupos", 3), ("K", datos.get("grupos", 0), 0),
+    ]))
+    fila += 2
+    filas.append(_excel_row(fila, [("A", "Distribución por nivel", 2)]))
+    fila += 1
+    filas.append(_excel_row(fila, [("A", "Nivel", 3), ("B", "Total", 3)]))
+    fila += 1
+    for nivel in datos.get("niveles", []):
+        filas.append(_excel_row(fila, [("A", nivel.get("nivel", "-"), _nivel_estilo(nivel.get("nivel", ""))), ("B", nivel.get("total", 0), 0)]))
+        fila += 1
+
+    fila += 1
+    merges.append(f"A{fila}:O{fila}")
+    filas.append(_excel_row(fila, [("A", "Detalle completo", 2)]))
+    fila += 1
+    encabezados = [
+        "Código", "Riesgo", "Nivel", "Probabilidad", "Impacto", "Puntaje",
+        "Inherente", "Prob. residual", "Impacto residual", "Residual",
+        "Procesos", "Responsables", "Controles", "Red. prob.", "Red. impacto"
+    ]
+    filas.append(_excel_row(fila, [(chr(65 + indice), titulo, 3) for indice, titulo in enumerate(encabezados)]))
+    fila += 1
+
+    for riesgo in datos.get("riesgos_detalle", []):
+        inherente = riesgo.get("riesgo_inherente", {})
+        residual = riesgo.get("riesgo_residual", {})
+        procesos = "; ".join(proceso.get("nombre", "") for proceso in riesgo.get("procesos", [])) or "Sin procesos"
+        responsables = []
+        for grupo in riesgo.get("grupos", []):
+            for integrante in grupo.get("integrantes", []):
+                responsables.append(f"{integrante.get('nombre', '')} ({integrante.get('rol', '')})")
+        controles = "; ".join(control.get("nombre", "") for control in riesgo.get("controles", [])) or "Sin controles"
+        filas.append(_excel_row(fila, [
+            ("A", riesgo.get("codigo", ""), 0),
+            ("B", riesgo.get("nombre", ""), 0),
+            ("C", riesgo.get("nivel", ""), _nivel_estilo(riesgo.get("nivel", ""))),
+            ("D", _texto_riesgo(riesgo.get("probabilidad")), 0),
+            ("E", _texto_riesgo(riesgo.get("impacto")), 0),
+            ("F", riesgo.get("puntaje", 0), 0),
+            ("G", inherente.get("riesgo_inherente_exacto", residual.get("riesgo_inherente", 0)), 0),
+            ("H", residual.get("probabilidad_residual", 0), 0),
+            ("I", residual.get("impacto_residual", 0), 0),
+            ("J", residual.get("riesgo_residual_exacto", 0), 0),
+            ("K", procesos, 0),
+            ("L", "; ".join(responsables) or "Sin responsables", 0),
+            ("M", controles, 0),
+            ("N", residual.get("reduccion_promedio_probabilidad", 0), 0),
+            ("O", residual.get("reduccion_promedio_impacto", 0), 0),
+        ]))
+        fila += 1
+
+    merges_xml = ''.join(f'<mergeCell ref="{merge}"/>' for merge in merges)
+    hoja = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews>
+<cols><col min="1" max="1" width="14"/><col min="2" max="2" width="32"/><col min="3" max="3" width="14"/><col min="4" max="5" width="18"/><col min="6" max="10" width="16"/><col min="11" max="13" width="38"/><col min="14" max="15" width="16"/></cols>
+<sheetData>{''.join(filas)}</sheetData>
+<mergeCells count="{len(merges)}">{merges_xml}</mergeCells>
+</worksheet>'''
+    estilos = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="18"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><i/><sz val="10"/><color rgb="FF64748B"/><name val="Calibri"/></font></fonts>
+<fills count="9"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF111827"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF8FAFC"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFD9EAD3"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF22C55E"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFBBF24"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF97316"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEF4444"/></patternFill></fill></fills>
+<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFE2E8F0"/></left><right style="thin"><color rgb="FFE2E8F0"/></right><top style="thin"><color rgb="FFE2E8F0"/></top><bottom style="thin"><color rgb="FFE2E8F0"/></bottom><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="9"><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFill="1" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1"/><xf numFmtId="0" fontId="2" fillId="5" borderId="1" xfId="0" applyFill="1" applyBorder="1"/><xf numFmtId="0" fontId="0" fillId="6" borderId="1" xfId="0" applyFill="1" applyBorder="1"/><xf numFmtId="0" fontId="2" fillId="7" borderId="1" xfId="0" applyFill="1" applyBorder="1"/><xf numFmtId="0" fontId="2" fillId="8" borderId="1" xfId="0" applyFill="1" applyBorder="1"/></cellXfs>
+</styleSheet>'''
+    archivos = {
+        "[Content_Types].xml": '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>''',
+        "_rels/.rels": '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>''',
+        "xl/workbook.xml": '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Dashboard" sheetId="1" r:id="rId1"/></sheets></workbook>''',
+        "xl/_rels/workbook.xml.rels": '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>''',
+        "xl/worksheets/sheet1.xml": hoja,
+        "xl/styles.xml": estilos,
+    }
+    salida = io.BytesIO()
+    with zipfile.ZipFile(salida, "w", zipfile.ZIP_DEFLATED) as paquete:
+        for nombre, contenido in archivos.items():
+            paquete.writestr(nombre, contenido)
+    return salida.getvalue()
 app.mount("/static", StaticFiles(directory=str(BASE_DIR.parent / "static")), name="static")
 app.add_middleware(
     SessionMiddleware,
@@ -643,6 +740,19 @@ def dashboard(request: Request):
             "usuario": usuario,
             "mensaje": mensaje,
             "metricas": obtener_metricas_dashboard()
+        }
+    )
+
+
+@app.get('/dashboard/exportar_excel')
+def exportar_dashboard_excel(request: Request):
+    datos = obtener_metricas_dashboard()
+    contenido = construir_excel_dashboard(datos)
+    return Response(
+        content=contenido,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": 'attachment; filename="dashboard_riesgos.xlsx"'
         }
     )
 

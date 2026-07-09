@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="/static/css/colores.css">
-    <link rel="stylesheet" href="/static/css/dasboard.css?v=dashboard-profesional-3">
+    <link rel="stylesheet" href="/static/css/dasboard.css?v=dashboard-ejecutivo-1">
     <link rel="stylesheet" href="/static/css/contenido.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css">
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -141,32 +141,67 @@
                     {% block contenido%}
                     {% set datos = metricas or {} %}
                     <section class="dash-risk-workbench mt-3" id="dashRiskWorkbench">
+                        <div class="dash-exec-hero">
+                            <div>
+                                <span class="dash-eyebrow">Panel ejecutivo</span>
+                                <h2>Mapa de riesgos</h2>
+                                <p>Vista consolidada de exposición inherente, residual, procesos y controles.</p>
+                            </div>
+                            <div class="dash-export-actions">
+                                <a class="btn btn-sm btn_primario" href="/dashboard/exportar_excel">
+                                    <i class="bi bi-file-earmark-spreadsheet me-2"></i>Excel
+                                </a>
+                                <button class="btn btn-sm btn-outline-secondary" type="button" id="dashExportImagen">
+                                    <i class="bi bi-image me-2"></i>Imagen
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="dash-kpi-grid">
+                            <article>
+                                <span>Riesgos</span>
+                                <strong>{{ datos.get('riesgos', 0) }}</strong>
+                            </article>
+                            <article>
+                                <span>Controles</span>
+                                <strong>{{ datos.get('controles', 0) }}</strong>
+                            </article>
+                            <article>
+                                <span>Procesos</span>
+                                <strong>{{ datos.get('procesos', 0) }}</strong>
+                            </article>
+                            <article>
+                                <span>Grupos</span>
+                                <strong>{{ datos.get('grupos', 0) }}</strong>
+                            </article>
+                        </div>
+
                         <div class="dash-risk-toolbar">
                             <div class="dash-filter-block dash-filter-main">
                                 <label for="dashProcesoFiltro">Proceso</label>
                                 <select id="dashProcesoFiltro" class="form-select form-select-sm">
-                                    <option value="">Seleccionar (Ninguno)</option>
+                                    <option value="">Todos los procesos</option>
                                     {% for proceso in datos.get('procesos_detalle', []) %}
                                         <option value="{{ proceso.id_proceso }}">{{ proceso.nombre }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
 
-                            <div class="dash-risk-type-group" aria-label="Tipo de riesgo">
+                            <div class="dash-risk-type-group" aria-label="Lectura del mapa">
                                 <label class="dash-risk-toggle active">
-                                    <input type="checkbox" id="dashFiltroResidual" checked disabled>
-                                    <span>R. Residual</span>
+                                    <input type="checkbox" id="dashFiltroInherente" value="inherente" checked>
+                                    <span><i class="bi bi-grid-3x3-gap"></i> Inherente</span>
                                 </label>
                                 <label class="dash-risk-toggle">
-                                    <input type="checkbox" id="dashFiltroInherente" disabled>
-                                    <span>R. Inherente</span>
+                                    <input type="checkbox" id="dashFiltroResidual" value="residual">
+                                    <span><i class="bi bi-shield-check"></i> Residual</span>
                                 </label>
                             </div>
 
                             <div class="dash-filter-block dash-filter-muted" id="dashGrupoFiltroWrap">
                                 <label>Grupo responsable</label>
                                 <div id="dashGrupoFiltro" class="dash-group-filter disabled">
-                                    Seleccione un proceso
+                                    Todos los responsables
                                 </div>
                             </div>
                         </div>
@@ -176,24 +211,12 @@
                                 <div class="dash-panel-head">
                                     <div>
                                         <span class="dash-eyebrow">Mapa de calor</span>
+                                        <h5 id="dashHeatTitulo">Riesgo inherente</h5>
                                     </div>
+                                    <span id="dashHeatScope" class="dash-soft-pill">Todos</span>
                                 </div>
 
-                                <div class="dash-heat-layout">
-                                    <div class="dash-heat-axis-y">Probabilidad</div>
-                                    <div>
-                                        <div class="dash-heat-axis-x">Impacto</div>
-                                        <div class="dash-heat-xlabels">
-                                            <span>Ins.</span><span>Men.</span><span>Mod.</span><span>May.</span><span>Cat.</span>
-                                        </div>
-                                        <div class="dash-heat-body">
-                                            <div class="dash-heat-ylabels">
-                                                <span>C.S.</span><span>Prob.</span><span>Pos.</span><span>Imp.</span><span>Rar.</span>
-                                            </div>
-                                            <div class="dash-heat-grid" id="dashHeatGrid"></div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <div class="dash-heat-maps" id="dashHeatMaps"></div>
 
                                 <div class="dash-heat-legend">
                                     <span><i style="background:#d9ead3"></i>Muy bajo</span>
@@ -208,7 +231,7 @@
                                 <div class="dash-panel-head">
                                     <div>
                                         <span class="dash-eyebrow">Riesgos</span>
-                                        <h5>Lista intuitiva</h5>
+                                        <h5>Riesgos priorizados</h5>
                                     </div>
                                     <span id="dashRiesgoResumen" class="dash-soft-pill">0 riesgos</span>
                                 </div>
@@ -264,9 +287,9 @@
         </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/dashboard.js?v=dashboard-profesional-3"> </script>
-    <script src="/static/js/librerias.js?v=dashboard-profesional-3"> </script>
-    <script src="/static/js/dashboard_interactivo.js?v=dashboard-profesional-3"> </script>
+    <script src="/static/js/dashboard.js?v=dashboard-ejecutivo-1"> </script>
+    <script src="/static/js/librerias.js?v=dashboard-ejecutivo-1"> </script>
+    <script src="/static/js/dashboard_interactivo.js?v=dashboard-ejecutivo-1"> </script>
     {% block scripts %}
         
     {% endblock%}

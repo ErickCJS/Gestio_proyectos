@@ -232,9 +232,7 @@
                                     ] %}
                                     {% set color_celda = colores[fila][columna] %}
 
-                                    <div class="riesgo-heatmap-cell" style="background:{{ color_celda }}; color:{% if color_celda in ['#d9ead3', '#fbbf24'] %}#111827{% else %}#ffffff{% endif %};">
-                                        {{ (5 - fila) * (columna + 1) }}
-                                    </div>
+                                    <div class="riesgo-heatmap-cell" style="background:{{ color_celda }}; color:{% if color_celda in ['#d9ead3', '#fbbf24'] %}#111827{% else %}#ffffff{% endif %};"></div>
 
                                     {% endfor %}
                                     {% endfor %}

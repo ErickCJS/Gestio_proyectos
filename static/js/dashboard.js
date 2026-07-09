@@ -98,9 +98,7 @@ function construirFormularioRiesgo(config = {}) {
                         <div id="nivelCalculado" class="badge fs-6">MUY BAJO</div>
                     </div>
                 </div>
-                <div class="col-lg-6">
-                    <div class="riesgo-modal-title">Matriz de riesgos 5x5</div>
-                    <div class="riesgo-modal-note">Puntaje = Probabilidad x Impacto. El valor 16 se clasifica como Alto. Extremo inicia en 17.</div>
+                <div class="col-lg-6 riesgo-modal-map-panel">
                     <div class="riesgo-modal-impact-title">Impacto</div>
                     <div class="riesgo-modal-matrix">
                         <div class="riesgo-modal-axis">Probabilidad</div>
@@ -1203,13 +1201,10 @@ function obtenerPuntajeRiesgo(impacto, probabilidad) {
 function crearMapaModal() {
     let html = '';
     for (let fila = 0; fila < 5; fila++) {
-        const probabilidad = 5 - fila;
         for (let columna = 0; columna < 5; columna++) {
-            const impacto = columna + 1;
-            const puntaje = probabilidad * impacto;
             const color = coloresMatrizRiesgo[fila][columna];
             const textoOscuro = color === '#d9ead3' || color === '#fbbf24';
-            html += '<div class="riesgo-modal-cell" style="background:' + color + ';color:' + (textoOscuro ? '#111827' : '#ffffff') + ';">' + puntaje + '</div>';
+            html += '<div class="riesgo-modal-cell" style="background:' + color + ';color:' + (textoOscuro ? '#111827' : '#ffffff') + ';"></div>';
         }
     }
     return html;
@@ -1289,8 +1284,12 @@ function moverMarcadorModal(
     const y = probabilidades[probabilidad];
     const celda = marcador.previousElementSibling?.children?.[y * 5 + x];
     const colorCelda = celda ? getComputedStyle(celda).backgroundColor : colorMapa;
-    marcador.style.left = (x * 42 + 2) + 'px';
-    marcador.style.top = (y* 42 + 2) + 'px';
+    if (celda) {
+        marcador.style.left = celda.offsetLeft + 'px';
+        marcador.style.top = celda.offsetTop + 'px';
+        marcador.style.width = celda.offsetWidth + 'px';
+        marcador.style.height = celda.offsetHeight + 'px';
+    }
     marcador.style.background = colorCelda;
     marcador.style.color = (colorMapa === '#d9ead3' || colorMapa === '#fbbf24') ? '#111827' : '#ffffff';
 

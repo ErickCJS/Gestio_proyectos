@@ -22,7 +22,10 @@ app = FastAPI()
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 def usuario_actual(request):
-    return request.session.get("usuario")
+    return request.session.get("usuario") or {
+        "nombre": "Administrador",
+        "correo": "administrador@magerisk.local"
+    }
 
 templates.env.globals["usuario_actual"] = usuario_actual
 def obtener_metricas_dashboard():
@@ -162,8 +165,7 @@ def obtener_metricas_dashboard():
                     nombre,
                     descripcion,
                     tipo,
-                    impacto,
-                    probabilidad,
+                    solidez_control,
                     estado
                 FROM control
                 ORDER BY id_control DESC
@@ -175,8 +177,7 @@ def obtener_metricas_dashboard():
                     "nombre": control["nombre"],
                     "descripcion": control["descripcion"] or "",
                     "tipo": control["tipo"],
-                    "impacto": control["impacto"],
-                    "probabilidad": control["probabilidad"],
+                    "solidez_control": control["solidez_control"],
                     "estado": control["estado"]
                 })
 
@@ -302,17 +303,16 @@ def construir_excel_detalle_riesgo(riesgo):
     merges.append(f"A{fila_actual}:F{fila_actual}")
     filas.append(_excel_row(fila_actual, [("A", "Controles asociados", 2)]))
     fila_actual += 1
-    filas.append(_excel_row(fila_actual, [("A", "Control", 3), ("B", "Tipo", 3), ("C", "Impacto", 3), ("D", "Probabilidad", 3), ("E", "Estado", 3), ("F", "Descripción", 3)]))
+    filas.append(_excel_row(fila_actual, [("A", "Control", 3), ("B", "Tipo", 3), ("C", "Solidez", 3), ("D", "Estado", 3), ("E", "Descripcion", 3)]))
     fila_actual += 1
     if riesgo["controles"]:
         for control in riesgo["controles"]:
             filas.append(_excel_row(fila_actual, [
                 ("A", control["nombre"], 0),
                 ("B", control["tipo"], 0),
-                ("C", control["impacto"], 0),
-                ("D", control["probabilidad"], 0),
-                ("E", control["estado"], 0),
-                ("F", control["descripcion"] or "Sin descripción", 0),
+                ("C", control["solidez_control"], 0),
+                ("D", control["estado"], 0),
+                ("E", control["descripcion"] or "Sin descripcion", 0),
             ]))
             fila_actual += 1
     else:
@@ -356,22 +356,15 @@ app.add_middleware(
 
 @app.get("/")
 def inicio(request:Request):
-    return templates.TemplateResponse(
-        request=request,
-        name="principal.html"
+    return RedirectResponse(
+        "/dashboard",
+        status_code=302
     )
 
 @app.get('/dashboard')
 def dashboard(request: Request):
 
-    usuario = request.session.get("usuario")
-
-    if not request.session.get("usuario"):
-        return RedirectResponse(
-            "/iniciar_sesion",
-            status_code=302
-        )
-
+    usuario = usuario_actual(request)
     mensaje = request.session.pop("mensaje", None)
 
     return templates.TemplateResponse(
@@ -388,12 +381,6 @@ def dashboard(request: Request):
 
 @app.get('/dashboard/riesgo/{id_riesgo}/exportar_excel')
 def exportar_detalle_riesgo_excel(id_riesgo: int, request: Request):
-    if not request.session.get("usuario"):
-        return RedirectResponse(
-            "/iniciar_sesion",
-            status_code=302
-        )
-
     datos = obtener_metricas_dashboard()
     riesgo = next(
         (item for item in datos["riesgos_detalle"] if item["id_riesgo"] == id_riesgo),

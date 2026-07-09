@@ -237,7 +237,7 @@ def rutas(app, templates):
         }
 
         return RedirectResponse(
-            "/iniciar_sesion",
+            "/dashboard",
             status_code=302
         )
 
@@ -247,130 +247,16 @@ def rutas(app, templates):
     # ==========================
     @app.get("/iniciar_sesion")
     def vista_login(request: Request):
+        return RedirectResponse("/dashboard", status_code=302)
 
-        mensaje = request.session.pop("mensaje", None)
-        datos = request.session.pop("datos", {})
-
-        return templates.TemplateResponse(
-            request=request,
-            name="inicio_sesion.html",
-            context={
-                "request": request,
-                "mensaje": mensaje,
-                "datos": datos
-            }
-        )
 
     # ==========================
     # LOGIN
     # ==========================
     @app.post("/iniciar_sesion")
-    def login(
-        request: Request,
-        correo: str = Form(...),
-        password: str = Form(...)
-    ):
+    def login(request: Request):
+        return RedirectResponse("/dashboard", status_code=302)
 
-        if correo.strip() == "" or password.strip() == "":
-
-            request.session["datos"] = {
-                "correo": correo
-            }
-            
-            request.session["mensaje"] = {
-                "tipo": "danger",
-                "texto": "Complete todos los campos."
-            }
-
-            return RedirectResponse(
-                "/iniciar_sesion",
-                status_code=302
-            )
-
-        db = conexion.conectar()
-
-        if db == "":
-
-            request.session["datos"] = {
-                "correo": correo
-            }
-
-            
-            request.session["mensaje"] = {
-                "tipo": "danger",
-                "texto": "No se pudo conectar con la base de datos."
-            }
-
-            return RedirectResponse(
-                "/iniciar_sesion",
-                status_code=302
-            )
-
-        with db.cursor() as cursor:
-
-            cursor.execute(
-                "SELECT * FROM usuario WHERE correo=%s",
-                (correo,)
-            )
-
-            usuario = cursor.fetchone()
-
-        db.close()
-
-        if usuario is None:
-
-            request.session["datos"] = {
-                "correo": correo
-            }
-            
-            request.session["mensaje"] = {
-                "tipo": "danger",
-                "texto": "El correo ingresado no se encuentra registrado."
-            }
-
-            return RedirectResponse(
-                "/iniciar_sesion",
-                status_code=302
-            )
-
-        if not bcrypt.checkpw(
-            password.encode("utf-8"),
-            usuario["password"].encode("utf-8")
-        ):
-
-            request.session["datos"] = {
-                "correo": correo
-            }
-
-            request.session["mensaje"] = {
-                "tipo": "danger",
-                "texto": "Contraseña incorrecta."
-            }
-
-            return RedirectResponse(
-                "/iniciar_sesion",
-                status_code=302
-            )
-
-        request.session["usuario"] = {
-            "id": usuario["id"],
-            "nombre": usuario["nombres_completo"],
-            "correo": usuario["correo"]
-        }
-
-        request.session["mensaje"] = {
-            "tipo": "success",
-            "texto": f"Bienvenido, {usuario['nombres_completo']}."
-        }
-
-        return RedirectResponse(
-            "/dashboard",
-            status_code=302
-        )
-
-    # ==========================
-    # BUSCAR PERSONAS
-    # ==========================
     @app.get("/personas/buscar")
     def buscar_personas(q: str = ""):
         termino = q.strip()
@@ -409,10 +295,5 @@ def rutas(app, templates):
     # ==========================
     @app.get("/cerrar_sesion")
     def cerrar_sesion(request: Request):
-
         request.session.clear()
-
-        return RedirectResponse(
-            "/",
-            status_code=302
-        )
+        return RedirectResponse("/dashboard", status_code=302)

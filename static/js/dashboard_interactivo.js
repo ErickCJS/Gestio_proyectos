@@ -10,8 +10,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         const detalleTitulo = document.getElementById('dashDetalleTitulo');
                         const detalleNivel = document.getElementById('dashDetalleNivel');
                         const detalleContenido = document.getElementById('dashDetalleContenido');
-                        const residual = document.getElementById('dashFiltroResidual');
-                        const inherente = document.getElementById('dashFiltroInherente');
                         let riesgoActivo = null;
                         let cuadranteActivo = null;
 
@@ -42,12 +40,6 @@ document.addEventListener('DOMContentLoaded', function () {
                                 filtrados = filtrados.filter((riesgo) => riesgo.impacto_valor === cuadranteActivo.impacto && riesgo.probabilidad_valor === cuadranteActivo.probabilidad);
                             }
                             return filtrados;
-                        }
-
-                        function actualizarToggles() {
-                            document.querySelectorAll('.dash-risk-toggle').forEach((label) => {
-                                label.classList.toggle('active', label.querySelector('input').checked);
-                            });
                         }
 
                         function renderGrupos() {
@@ -193,7 +185,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                             <article>
                                                 <div><strong>${texto(control.nombre)}</strong><span>${texto(control.tipo)}</span></div>
                                                 <p>${texto(control.descripcion || 'Sin descripción.')}</p>
-                                                <small>Impacto: ${texto(control.impacto)} · Probabilidad: ${texto(control.probabilidad)} · ${texto(control.estado)}</small>
+                                                <small>Solidez: ${texto(control.solidez_control)} · Estado: ${texto(control.estado)}</small>
                                             </article>
                                         `).join('') : '<div class="dash-empty-mini">Este riesgo aún no tiene controles asociados.</div>'}
                                     </div>
@@ -215,7 +207,5 @@ document.addEventListener('DOMContentLoaded', function () {
                             riesgoActivo = null;
                             renderTodo();
                         });
-                        [residual, inherente].forEach((input) => input.addEventListener('change', actualizarToggles));
-                        actualizarToggles();
                         renderTodo();
                     });

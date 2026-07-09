@@ -17,9 +17,49 @@ def rutas(app, templates):
     opciones_efecto = {"No afecta", "Baja", "Media", "Alta", "Muy Alta"}
 
     def asegurar_tabla_control(db):
-        # Se ha deshabilitado cualquier creación/alteración de tablas desde código Python
-        # por petición del usuario. Esta función ahora es no-op para evitar DDL automáticos.
-        return None
+        with db.cursor() as cursor:
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS control (
+                    id_control INT AUTO_INCREMENT PRIMARY KEY,
+                    nombre VARCHAR(150) NOT NULL,
+                    descripcion VARCHAR(255),
+                    tipo ENUM('Preventivo', 'Detectivo', 'Correctivo') NOT NULL,
+                    impacto ENUM('No afecta', 'Baja', 'Media', 'Alta', 'Muy Alta') NOT NULL DEFAULT 'No afecta',
+                    probabilidad ENUM('No afecta', 'Baja', 'Media', 'Alta', 'Muy Alta') NOT NULL DEFAULT 'No afecta',
+                    id_riesgo INT NOT NULL,
+                    estado ENUM('Activo', 'Inactivo') NOT NULL DEFAULT 'Activo',
+                    fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_control_riesgo
+                        FOREIGN KEY (id_riesgo)
+                        REFERENCES riesgo(id_riesgo)
+                )
+                """
+            )
+            columnas = {
+                "impacto": """
+                    ALTER TABLE control
+                    ADD COLUMN impacto ENUM('No afecta', 'Baja', 'Media', 'Alta', 'Muy Alta') NOT NULL DEFAULT 'No afecta'
+                """,
+                "probabilidad": """
+                    ALTER TABLE control
+                    ADD COLUMN probabilidad ENUM('No afecta', 'Baja', 'Media', 'Alta', 'Muy Alta') NOT NULL DEFAULT 'No afecta'
+                """
+            }
+            for columna, ddl in columnas.items():
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) AS total
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                        AND TABLE_NAME = 'control'
+                        AND COLUMN_NAME = %s
+                    """,
+                    (columna,),
+                )
+                if cursor.fetchone()["total"] == 0:
+                    cursor.execute(ddl)
+            db.commit()
 
     def cargar_riesgos(db):
         with db.cursor() as cursor:
@@ -41,12 +81,11 @@ def rutas(app, templates):
                 SELECT
                     c.id_control,
                     c.id_riesgo,
-                    c.solidez_control,
-                    c.mitigacion_probabilidad,
-                    c.mitigacion_impacto,
                     c.nombre,
                     c.descripcion,
                     c.tipo,
+                    c.impacto,
+                    c.probabilidad,
                     c.estado,
                     c.fecha_creacion,
                     r.nombre AS riesgo_nombre
@@ -71,7 +110,6 @@ def rutas(app, templates):
             controles = cargar_controles(db)
             db.close()
 
-        print(controles)
         return templates.TemplateResponse(
             name="controles.html",
             request=request,
@@ -88,28 +126,17 @@ def rutas(app, templates):
         nombre = datos.get("nombre", "").strip()
         descripcion = datos.get("descripcion", "").strip()
         tipo = datos.get("tipo", "").strip()
-        # solidez textual (enum)
-        solidez = datos.get("solidez", "").strip()
-        # mitigaciones en porcentaje 0-100 (enteros o null)
-        mit_prob_raw = datos.get("mitigacion_probabilidad", "").strip()
-        mit_imp_raw = datos.get("mitigacion_impacto", "").strip()
-        try:
-            mitigacion_prob = int(mit_prob_raw) if mit_prob_raw != '' else None
-        except Exception:
-            mitigacion_prob = None
-        try:
-            mitigacion_imp = int(mit_imp_raw) if mit_imp_raw != '' else None
-        except Exception:
-            mitigacion_imp = None
+        impacto = datos.get("impacto", "").strip()
+        probabilidad = datos.get("probabilidad", "").strip()
         id_riesgo = datos.get("id_riesgo", "").strip()
 
         response = RedirectResponse("/controles", status_code=303)
 
-        if not nombre or not tipo or not id_riesgo:
+        if not nombre or not tipo or not impacto or not probabilidad or not id_riesgo:
             set_flash(request, "warning", "Complete los campos obligatorios.")
             return response
 
-        if tipo not in tipos_control:
+        if tipo not in tipos_control or impacto not in opciones_efecto or probabilidad not in opciones_efecto:
             set_flash(request, "warning", "Seleccione valores válidos para el control.")
             return response
 
@@ -126,21 +153,19 @@ def rutas(app, templates):
                     nombre,
                     descripcion,
                     tipo,
-                    id_riesgo,
-                    solidez_control,
-                    mitigacion_probabilidad,
-                    mitigacion_impacto
+                    impacto,
+                    probabilidad,
+                    id_riesgo
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 """,
                 (
                     nombre,
                     descripcion or None,
                     tipo,
+                    impacto,
+                    probabilidad,
                     id_riesgo,
-                    solidez or 'Media',
-                    mitigacion_prob,
-                    mitigacion_imp,
                 ),
             )
             db.commit()
@@ -175,26 +200,17 @@ def rutas(app, templates):
         nombre = datos.get('nombre', '').strip()
         descripcion = datos.get('descripcion', '').strip()
         tipo = datos.get('tipo', '').strip()
-        solidez = datos.get('solidez', '').strip()
-        mit_prob_raw = datos.get('mitigacion_probabilidad', '').strip()
-        mit_imp_raw = datos.get('mitigacion_impacto', '').strip()
-        try:
-            mitigacion_prob = int(mit_prob_raw) if mit_prob_raw != '' else None
-        except Exception:
-            mitigacion_prob = None
-        try:
-            mitigacion_imp = int(mit_imp_raw) if mit_imp_raw != '' else None
-        except Exception:
-            mitigacion_imp = None
+        impacto = datos.get('impacto', '').strip()
+        probabilidad = datos.get('probabilidad', '').strip()
         id_riesgo = datos.get('id_riesgo', '').strip()
 
         response = RedirectResponse('/controles', status_code=303)
 
-        if not nombre or not tipo or not id_riesgo:
+        if not nombre or not tipo or not impacto or not probabilidad or not id_riesgo:
             set_flash(request, 'warning', 'Complete los campos obligatorios.')
             return response
 
-        if tipo not in tipos_control:
+        if tipo not in tipos_control or impacto not in opciones_efecto or probabilidad not in opciones_efecto:
             set_flash(request, 'warning', 'Seleccione valores válidos para el control.')
             return response
 
@@ -207,12 +223,10 @@ def rutas(app, templates):
             cursor.execute(
                 """
                 UPDATE control
-                SET nombre=%s, descripcion=%s, tipo=%s, id_riesgo=%s,
-                    solidez_control=%s, mitigacion_probabilidad=%s, mitigacion_impacto=%s
+                SET nombre=%s, descripcion=%s, tipo=%s, impacto=%s, probabilidad=%s, id_riesgo=%s
                 WHERE id_control=%s
                 """,
-                (nombre, descripcion or None, tipo, id_riesgo,
-                 solidez or 'Media', mitigacion_prob, mitigacion_imp, id_control),
+                (nombre, descripcion or None, tipo, impacto, probabilidad, id_riesgo, id_control),
             )
             db.commit()
 

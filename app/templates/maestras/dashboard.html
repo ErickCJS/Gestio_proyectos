@@ -89,16 +89,9 @@
 
 
             </nav>
+            <div class="sidebar-footer"></div>
 
-            <!-- Footer -->
-            <div class="sidebar-footer">
-                <a href="/logout" class="sidebar-footer-link">
-                    <span class="nav-icon-mg"><i class="bi bi-box-arrow-left"></i></span>
-                    <span class="nav-label-mg">Cerrar Sesión</span>
-                </a>
-            </div>
-
-        </aside>
+</aside>
 
         <!-- ==================== MAIN ==================== -->
         <div class="main-content " id="mainContent">
@@ -118,10 +111,7 @@
                 <div class="topbar-right d-flex">
                     <div class="d-flex justify-content-center align-items-center nombres_c">
                         {% set usuario = usuario_actual(request) %}
-
-                        {% if usuario %}
-                            <span>{{ usuario.nombre }}</span>
-                        {% endif %}
+                        <span>{{ usuario.nombre }}</span>
                     </div>
                 </div>
             </header>
@@ -164,11 +154,11 @@
 
                             <div class="dash-risk-type-group" aria-label="Tipo de riesgo">
                                 <label class="dash-risk-toggle active">
-                                    <input type="checkbox" id="dashFiltroResidual" checked>
+                                    <input type="checkbox" id="dashFiltroResidual" checked disabled>
                                     <span>R. Residual</span>
                                 </label>
                                 <label class="dash-risk-toggle">
-                                    <input type="checkbox" id="dashFiltroInherente">
+                                    <input type="checkbox" id="dashFiltroInherente" disabled>
                                     <span>R. Inherente</span>
                                 </label>
                             </div>

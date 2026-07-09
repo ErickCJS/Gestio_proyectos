@@ -72,25 +72,36 @@
                                 {{ riesgo.impacto }}
                             </td>
                             <td class="text-center">
-                                {% if riesgo.nivel=="MUY BAJO" %}
+                                {% set riesgo_nivel = (riesgo.nivel or '') | upper %}
+                                
+                                {% if riesgo_nivel == "MUY BAJO" %}
                                 <span class="badge nivel-riesgo-badge nivel-muy-bajo">
                                     Muy bajo
                                 </span>
-                                {% elif riesgo.nivel=="BAJO" %}
+                                
+                                {% elif riesgo_nivel == "BAJO" %}
                                 <span class="badge nivel-riesgo-badge nivel-bajo">
                                     Bajo
                                 </span>
-                                {% elif riesgo.nivel=="MEDIO" %}
+                                
+                                {% elif riesgo_nivel == "MEDIO" %}
                                 <span class="badge nivel-riesgo-badge nivel-medio">
                                     Medio
                                 </span>
-                                {% elif riesgo.nivel=="ALTO" %}
+                                
+                                {% elif riesgo_nivel == "ALTO" %}
                                 <span class="badge nivel-riesgo-badge nivel-alto">
                                     Alto
                                 </span>
-                                {% else %}
+                                
+                                {% elif riesgo_nivel == "CRITICO" or riesgo_nivel == "CRÍTICO" or riesgo_nivel == "EXTREMO" %}
                                 <span class="badge nivel-riesgo-badge nivel-extremo">
                                     Extremo
+                                </span>
+                                
+                                {% else %}
+                                <span class="badge nivel-riesgo-badge nivel-sin-nivel">
+                                    Sin nivel
                                 </span>
                                 {% endif %}
                             </td>

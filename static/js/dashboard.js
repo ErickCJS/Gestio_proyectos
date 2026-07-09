@@ -443,24 +443,28 @@ const mostrar_modal = (tipo, data = {}) => {
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label modal-label">Impacto</label>
-                        <select class="form-select" name="impacto" required>
-                            <option value="No afecta">No afecta</option>
+                        <label class="form-label modal-label">Solidez del control</label>
+                        <select class="form-select" name="solidez" required>
+                            <option value="Muy baja">Muy baja</option>
                             <option value="Baja">Baja</option>
                             <option value="Media" selected>Media</option>
                             <option value="Alta">Alta</option>
-                            <option value="Muy Alta">Muy Alta</option>
+                            <option value="Muy alta">Muy alta</option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label modal-label">Probabilidad</label>
-                        <select class="form-select" name="probabilidad" required>
-                            <option value="No afecta">No afecta</option>
-                            <option value="Baja">Baja</option>
-                            <option value="Media" selected>Media</option>
-                            <option value="Alta">Alta</option>
-                            <option value="Muy Alta">Muy Alta</option>
-                        </select>
+                        <label class="form-label modal-label">Mitigación Probabilidad</label>
+                        <div class="d-flex align-items-center gap-3">
+                            <input type="range" class="form-range" name="mitigacion_probabilidad" min="0" max="100" value="0">
+                            <div class="label-mit-prob">0%</div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Mitigación Impacto</label>
+                        <div class="d-flex align-items-center gap-3">
+                            <input type="range" class="form-range" name="mitigacion_impacto" min="0" max="100" value="0">
+                            <div class="label-mit-imp">0%</div>
+                        </div>
                     </div>
                 </form>
             `;
@@ -472,6 +476,7 @@ const mostrar_modal = (tipo, data = {}) => {
             const catalogosEd = window.catalogosControles || {};
             const riesgosEd = Array.isArray(catalogosEd.riesgos) ? catalogosEd.riesgos : [];
             const opcionesRiesgosEd = riesgosEd.map(item => `<option value="${item.id_riesgo}" ${String(item.id_riesgo) === String(data.id_riesgo) ? 'selected' : ''}>${item.nombre}</option>`).join('');
+            const solVal = (typeof data.solidez !== 'undefined' && data.solidez !== null) ? String(data.solidez) : '';
             botones = `
                 <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">Cancelar</button>
                 <button type="submit" class="btn btn-sm btn_primario" form="frm_editarcontrol">
@@ -504,25 +509,30 @@ const mostrar_modal = (tipo, data = {}) => {
                             <option value="Correctivo" ${data.tipo === 'Correctivo' ? 'selected' : ''}>Correctivo</option>
                         </select>
                     </div>
+                    <!-- Impacto y Probabilidad removidos según esquema actual -->
                     <div class="mb-3">
-                        <label class="form-label modal-label">Impacto</label>
-                        <select class="form-select" name="impacto" required>
-                            <option value="No afecta" ${data.impacto === 'No afecta' ? 'selected' : ''}>No afecta</option>
-                            <option value="Baja" ${data.impacto === 'Baja' ? 'selected' : ''}>Baja</option>
-                            <option value="Media" ${data.impacto === 'Media' ? 'selected' : ''}>Media</option>
-                            <option value="Alta" ${data.impacto === 'Alta' ? 'selected' : ''}>Alta</option>
-                            <option value="Muy Alta" ${data.impacto === 'Muy Alta' ? 'selected' : ''}>Muy Alta</option>
+                        <label class="form-label modal-label">Solidez del control</label>
+                        <select class="form-select" name="solidez" required>
+                            <option value="Muy baja" ${solVal.toLowerCase() === 'muy baja' ? 'selected' : ''}>Muy baja</option>
+                            <option value="Baja" ${solVal.toLowerCase() === 'baja' ? 'selected' : ''}>Baja</option>
+                            <option value="Media" ${solVal.toLowerCase() === 'media' ? 'selected' : ''}>Media</option>
+                            <option value="Alta" ${solVal.toLowerCase() === 'alta' ? 'selected' : ''}>Alta</option>
+                            <option value="Muy alta" ${solVal.toLowerCase() === 'muy alta' ? 'selected' : ''}>Muy alta</option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label modal-label">Probabilidad</label>
-                        <select class="form-select" name="probabilidad" required>
-                            <option value="No afecta" ${data.probabilidad === 'No afecta' ? 'selected' : ''}>No afecta</option>
-                            <option value="Baja" ${data.probabilidad === 'Baja' ? 'selected' : ''}>Baja</option>
-                            <option value="Media" ${data.probabilidad === 'Media' ? 'selected' : ''}>Media</option>
-                            <option value="Alta" ${data.probabilidad === 'Alta' ? 'selected' : ''}>Alta</option>
-                            <option value="Muy Alta" ${data.probabilidad === 'Muy Alta' ? 'selected' : ''}>Muy Alta</option>
-                        </select>
+                        <label class="form-label modal-label">Mitigación Probabilidad</label>
+                        <div class="d-flex align-items-center gap-3">
+                            <input type="range" class="form-range" name="mitigacion_probabilidad" min="0" max="100" value="${typeof data.mitigacion_probabilidad !== 'undefined' && data.mitigacion_probabilidad !== null && data.mitigacion_probabilidad !== '' ? data.mitigacion_probabilidad : 0}">
+                            <div class="label-mit-prob">${typeof data.mitigacion_probabilidad !== 'undefined' && data.mitigacion_probabilidad !== null && data.mitigacion_probabilidad !== '' ? data.mitigacion_probabilidad : 0}%</div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label modal-label">Mitigación Impacto</label>
+                        <div class="d-flex align-items-center gap-3">
+                            <input type="range" class="form-range" name="mitigacion_impacto" min="0" max="100" value="${typeof data.mitigacion_impacto !== 'undefined' && data.mitigacion_impacto !== null && data.mitigacion_impacto !== '' ? data.mitigacion_impacto : 0}">
+                            <div class="label-mit-imp">${typeof data.mitigacion_impacto !== 'undefined' && data.mitigacion_impacto !== null && data.mitigacion_impacto !== '' ? data.mitigacion_impacto : 0}%</div>
+                        </div>
                     </div>
                 </form>
             `;
@@ -617,14 +627,7 @@ const mostrar_modal = (tipo, data = {}) => {
                     <label class="form-label modal-label">Tipo</label>
                     <div class="modal-readonly-field">${data.tipo ?? ''}</div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label modal-label">Impacto</label>
-                    <div class="modal-readonly-field">${data.impacto ?? ''}</div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label modal-label">Probabilidad</label>
-                    <div class="modal-readonly-field">${data.probabilidad ?? ''}</div>
-                </div>
+                <!-- Impacto y Probabilidad eliminados -->
             `;
             break;
 
@@ -644,6 +647,20 @@ const mostrar_modal = (tipo, data = {}) => {
             actualizarMapaRiesgo();
         }
     },100);
+            // actualizar etiquetas para inputs range en modales
+            document.addEventListener('input', (e) => {
+                if (!e.target) return;
+                const el = e.target;
+                // solidez ahora es un select, no actualizamos con range
+                if (el.matches('input[type="range"][name="mitigacion_probabilidad"]')) {
+                    const label = el.closest('form')?.querySelector('.label-mit-prob');
+                    if (label) label.textContent = el.value + '%';
+                }
+                if (el.matches('input[type="range"][name="mitigacion_impacto"]')) {
+                    const label = el.closest('form')?.querySelector('.label-mit-imp');
+                    if (label) label.textContent = el.value + '%';
+                }
+            });
 }
 
 const cerrar_modal = () => {
@@ -1022,14 +1039,12 @@ const ver_proceso = (id_proceso, nombre, descripcion, grupo_nombre) => {
     });
 }
 
-const ver_control = (id_control, nombre, descripcion, tipo, impacto, probabilidad, riesgo_nombre, estado) => {
+const ver_control = (id_control, nombre, descripcion, tipo, riesgo_nombre, estado) => {
     mostrar_modal('ver_control', {
         id_control,
         nombre,
         descripcion,
         tipo,
-        impacto,
-        probabilidad,
         riesgo_nombre,
         estado
     });
@@ -1057,9 +1072,10 @@ const mostrarDetalleControl = (
     codigo,
     descripcion,
     tipo,
-    impacto,
-    probabilidad,
     riesgo_nombre,
+    solidez,
+    mitigacion_probabilidad,
+    mitigacion_impacto,
     estado
 ) => {
     const mapeoEstado = {
@@ -1071,19 +1087,21 @@ const mostrarDetalleControl = (
     const detalleCodigo = document.getElementById('detalleControlCodigo');
     const detalleDescripcion = document.getElementById('detalleControlDescripcion');
     const detalleTipo = document.getElementById('detalleControlTipo');
-    const detalleImpacto = document.getElementById('detalleControlImpacto');
-    const detalleProbabilidad = document.getElementById('detalleControlProbabilidad');
     const detalleRiesgo = document.getElementById('detalleControlRiesgo');
     const detalleEstado = document.getElementById('detalleControlEstado');
+    const detalleSolidez = document.getElementById('detalleControlSolidez');
+    const detalleMitigacionProb = document.getElementById('detalleControlMitigacionProbabilidad');
+    const detalleMitigacionImp = document.getElementById('detalleControlMitigacionImpacto');
 
     if (detalleNombre) detalleNombre.textContent = nombre || 'Control';
     if (detalleCodigo) detalleCodigo.textContent = codigo || '-';
     if (detalleDescripcion) detalleDescripcion.textContent = descripcion || '-';
     if (detalleTipo) detalleTipo.textContent = tipo || '-';
-    if (detalleImpacto) detalleImpacto.textContent = impacto || '-';
-    if (detalleProbabilidad) detalleProbabilidad.textContent = probabilidad || '-';
     if (detalleRiesgo) detalleRiesgo.textContent = riesgo_nombre || '-';
     if (detalleEstado) detalleEstado.textContent = mapeoEstado[estado] || estado || '-';
+    if (detalleSolidez) detalleSolidez.textContent = (typeof solidez !== 'undefined' && solidez !== null && solidez !== '') ? String(solidez) : '-';
+    if (detalleMitigacionProb) detalleMitigacionProb.textContent = (typeof mitigacion_probabilidad !== 'undefined' && mitigacion_probabilidad !== null && mitigacion_probabilidad !== '') ? String(mitigacion_probabilidad) + '%' : '0%';
+    if (detalleMitigacionImp) detalleMitigacionImp.textContent = (typeof mitigacion_impacto !== 'undefined' && mitigacion_impacto !== null && mitigacion_impacto !== '') ? String(mitigacion_impacto) + '%' : '0%';
 }
 
 window.seleccionarFilaControl = seleccionarFilaControl;

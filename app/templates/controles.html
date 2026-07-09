@@ -24,8 +24,9 @@
                                 <th>Riesgo</th>
                                 <th>Control</th>
                                 <th style="width:130px;">Tipo</th>
-                                <th style="width:120px;">Efectividad sobre el impacto</th>
-                                <th style="width:120px;">Efectibidad sobre la probabilidad</th>
+                                <th style="width:110px;">Solidez</th>
+                                <th style="width:110px;">Mitig. P</th>
+                                <th style="width:110px;">Mitig. I</th>
                                 <th style="width:120px;" class="text-center">Acciones</th>
                             </tr>
                         </thead>
@@ -39,10 +40,11 @@
                                     data-nombre="{{ control.nombre }}"
                                     data-descripcion="{{ control.descripcion or '' }}"
                                     data-tipo="{{ control.tipo }}"
-                                    data-impacto="{{ control.impacto }}"
-                                    data-probabilidad="{{ control.probabilidad }}"
+                                    data-solidez="{{ control.solidez_control if control.solidez_control is defined else '' }}"
                                     data-riesgo-nombre="{{ control.riesgo_nombre }}"
                                     data-estado="{{ control.estado }}"
+                                    data-mitigacion-probabilidad="{{ 0 if control.mitigacion_probabilidad is none else control.mitigacion_probabilidad }}"
+                                    data-mitigacion-impacto="{{ 0 if control.mitigacion_impacto is none else control.mitigacion_impacto }}"
                                     style="cursor:pointer;">
                                     <td>CTL-{{ "%03d"|format(control.id_control) }}</td>
                                     <td>{{ control.riesgo_nombre }}</td>
@@ -51,8 +53,9 @@
                                         <small class="text-secondary">{{ control.descripcion or '' }}</small>
                                     </td>
                                     <td>{{ control.tipo }}</td>
-                                    <td>{{ control.impacto }}</td>
-                                    <td>{{ control.probabilidad }}</td>
+                                    <td>{{ control.solidez_control if control.solidez_control is defined else '-' }}</td>
+                                    <td class="text-center">{{ 0 if control.mitigacion_probabilidad is none else control.mitigacion_probabilidad }}%</td>
+                                    <td class="text-center">{{ 0 if control.mitigacion_impacto is none else control.mitigacion_impacto }}%</td>
                  
                                     <td class="text-center">
                                         <div class="d-inline-flex gap-1 acciones">
@@ -64,8 +67,9 @@
                                                 data-nombre="{{ control.nombre }}"
                                                 data-descripcion="{{ control.descripcion or '' }}"
                                                 data-tipo="{{ control.tipo }}"
-                                                data-impacto="{{ control.impacto }}"
-                                                data-probabilidad="{{ control.probabilidad }}"
+                                                data-solidez="{{ control.solidez_control if control.solidez_control is defined else '' }}"
+                                                data-mitigacion-probabilidad="{{ 0 if control.mitigacion_probabilidad is none else control.mitigacion_probabilidad }}"
+                                                data-mitigacion-impacto="{{ 0 if control.mitigacion_impacto is none else control.mitigacion_impacto }}"
                                                 data-id-riesgo="{{ control.id_riesgo if control.id_riesgo is defined else '' }}"
                                                 data-riesgo-nombre="{{ control.riesgo_nombre }}"
                                                 title="Editar control"
@@ -114,19 +118,28 @@
                                 <span>Tipo</span>
                                 <strong id="detalleControlTipo">-</strong>
                             </div>
-                            <div class="detalle-resumen-item">
-                                <span>Impacto</span>
-                                <strong id="detalleControlImpacto">-</strong>
-                            </div>
-                            <div class="detalle-resumen-item">
-                                <span>Probabilidad</span>
-                                <strong id="detalleControlProbabilidad">-</strong>
-                            </div>
+                            <!-- Impacto y Probabilidad eliminados del detalle -->
                         </div>
                     </div>
                     <div class="mb-3">
                         <small class="text-secondary">Riesgo asociado</small>
                         <div id="detalleControlRiesgo" class="fw-semibold">-</div>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-secondary">Solidez</small>
+                        <div id="detalleControlSolidez" class="fw-semibold">-</div>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-secondary">Mitigación (Probabilidad)</small>
+                        <div id="detalleControlMitigacionProbabilidad" class="fw-semibold">-</div>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-secondary">Mitigación (Impacto)</small>
+                        <div id="detalleControlMitigacionImpacto" class="fw-semibold">-</div>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-secondary">Estado</small>
+                        <div id="detalleControlEstado" class="fw-semibold">-</div>
                     </div>
        
                 </div>
@@ -153,19 +166,18 @@
                                 botonAccion.dataset.nombre || '',
                                 botonAccion.dataset.descripcion || '',
                                 botonAccion.dataset.tipo || '',
-                                botonAccion.dataset.impacto || '',
-                                botonAccion.dataset.probabilidad || '',
                                 botonAccion.dataset.riesgoNombre || '',
                             );
                         } else if (accion === 'editar-control') {
                             // abrir modal de edición con datos prellenados
-                            mostrar_modal('editar_control', {
+                                mostrar_modal('editar_control', {
                                 id_control: Number(botonAccion.dataset.idControl),
                                 nombre: botonAccion.dataset.nombre || '',
                                 descripcion: botonAccion.dataset.descripcion || '',
                                 tipo: botonAccion.dataset.tipo || '',
-                                impacto: botonAccion.dataset.impacto || '',
-                                probabilidad: botonAccion.dataset.probabilidad || '',
+                                    solidez: botonAccion.dataset.solidez || '',
+                                    mitigacion_probabilidad: Number(botonAccion.dataset.mitigacionProbabilidad) || 0,
+                                    mitigacion_impacto: Number(botonAccion.dataset.mitigacionImpacto) || 0,
                                 id_riesgo: botonAccion.dataset.idRiesgo || '',
                             });
                         } else if (accion === 'eliminar-control' && typeof window.eliminarControl === 'function') {
@@ -175,16 +187,18 @@
                     }
 
                     const fila = event.target.closest('tr.fila-control');
-                    if (fila && typeof window.seleccionarFilaControl === 'function' && typeof window.mostrarDetalleControl === 'function') {
+                        if (fila && typeof window.seleccionarFilaControl === 'function' && typeof window.mostrarDetalleControl === 'function') {
                         window.seleccionarFilaControl(fila);
                         window.mostrarDetalleControl(
                             fila.dataset.nombre || '',
                             fila.dataset.codigo || '',
                             fila.dataset.descripcion || '',
                             fila.dataset.tipo || '',
-                            fila.dataset.impacto || '',
-                            fila.dataset.probabilidad || '',
-                            fila.dataset.riesgoNombre || '',
+                                fila.dataset.riesgoNombre || '',
+                                fila.dataset.solidez || '',
+                                Number(fila.dataset.mitigacionProbabilidad) || 0,
+                                Number(fila.dataset.mitigacionImpacto) || 0,
+                                fila.dataset.estado || '',
                         );
                     }
                 });

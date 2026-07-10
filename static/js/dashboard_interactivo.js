@@ -282,9 +282,9 @@ document.addEventListener('DOMContentLoaded', function () {
                                     <p>Riesgo residual: ${numero(residual.riesgo_residual_exacto)} · ${texto(residual.probabilidad_residual_categoria || '-')} / ${texto(residual.impacto_residual_categoria || '-')}</p>
                                 </div>
                                 <div class="dash-detail-section">
-                                    <div class="dash-section-title"><h6>Procesos relacionados</h6></div>
+                                    <div class="dash-section-title"><h6>Actividades relacionadas</h6></div>
                                     <div class="dash-chip-row">
-                                        ${riesgo.procesos.length ? riesgo.procesos.map((p) => `<span>${texto(p.nombre)}</span>`).join('') : '<span>Sin proceso asignado</span>'}
+                                        ${riesgo.procesos.length ? riesgo.procesos.map((p) => `<span>${texto(p.nombre)}</span>`).join('') : '<span>Sin actividad asignada</span>'}
                                     </div>
                                 </div>
                                 <div class="dash-detail-section">
@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                                     <div><i class="bi bi-person-circle"></i><span>${texto(persona.nombre)}</span><small>${texto(persona.rol)}</small></div>
                                                 `).join('') : '<small>Sin integrantes activos.</small>'}
                                             </article>
-                                        `).join('') : '<article><strong>Sin grupo visible</strong><small>Asocie el riesgo a un proceso para ver responsables.</small></article>'}
+                                        `).join('') : '<article><strong>Sin grupo visible</strong><small>Asocie el riesgo a una actividad para ver responsables.</small></article>'}
                                     </div>
                                 </div>
                                 <div class="dash-detail-section">
@@ -416,8 +416,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             ctx.font = '500 14px Inter, Arial';
                             const proceso = procesoSelect.value
                                 ? procesos.find((item) => String(item.id_proceso) === procesoSelect.value)?.nombre
-                                : 'Todos los procesos';
-                            ctx.fillText(`${proceso || 'Todos los procesos'} · ${lista.length} riesgo${lista.length === 1 ? '' : 's'}`, 36, 68);
+                                : 'Todas las actividades';
+                            ctx.fillText(`${proceso || 'Todas las actividades'} · ${lista.length} riesgo${lista.length === 1 ? '' : 's'}`, 36, 68);
                             const totalControles = lista.reduce((total, riesgo) => total + (riesgo.controles || []).length, 0);
                             const foco = riesgoFijadoMapa && riesgoActivo ? riesgoActivo : null;
                             const inherente = foco?.riesgo_inherente || {};
@@ -436,7 +436,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 : [
                                     ['Riesgos', String(lista.length)],
                                     ['Controles', String(totalControles)],
-                                    ['Proceso', proceso || 'Todos'],
+                                    ['Actividad', proceso || 'Todas'],
                                     ['Vista', modosMapa().map(etiquetaModo).join(' + ')]
                                 ];
                             tarjetas.forEach(([label, value], index) => {

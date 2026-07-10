@@ -1,12 +1,12 @@
 {% extends '/maestras/dashboard.html' %}
 
 {% block titulo_contenido %}
-    <h4>Procesos</h4>
-    <span>Visualiza y administra los procesos de tu organización</span>
+    <h4>Actividades</h4>
+    <span>Visualiza y administra las actividades de tu organización</span>
 {% endblock %}
 
 {% block accion_contenido %}
-    <button class="btn btn-sm btn_primario" onclick="mostrar_modal('nproceso')">Nuevo proceso</button>
+    <button class="btn btn-sm btn_primario" onclick="mostrar_modal('nproceso')">Nueva actividad</button>
 {% endblock %}
 
 {% block contenido %}
@@ -18,7 +18,7 @@
                         <thead>
                             <tr>
                                 <th>Código</th>
-                                <th>Proceso</th>
+                                <th>Actividad</th>
                                 <th>Descripcion</th>
                                 <th>Grupo</th>
                                 <th class="text-center">Acciones</th>
@@ -37,10 +37,22 @@
                                     style="cursor:pointer;">
                                     <td>PRC-{{ "%03d"|format(proceso.id_proceso) }}</td>
                                     <td>{{ proceso.nombre }}</td>
-                                    <td>{{ proceso.descripcion }}</td>
+                                    <td title="{{ (proceso.descripcion or '')|e }}">
+                                        {{ (proceso.descripcion or '')|truncate(70, True, '...') }}
+                                    </td>
                                     <td>{{ proceso.grupo_nombre }}</td>
                                     <td class="text-center ">
                                         <div class="d-inline-flex gap-1 acciones">
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm btn-ia-riesgo"
+                                                data-ia-control
+                                                data-id-proceso="{{ proceso.id_proceso }}"
+                                                data-nombre="{{ (proceso.nombre or '')|e }}"
+                                                onclick="event.stopPropagation();abrirAgregarRiesgoProceso(this.dataset.idProceso, this.dataset.nombre)"
+                                                title="Agregar riesgos con IA">
+                                                <i class="bi bi-suit-diamond-fill"></i>
+                                            </button>
                                             <button
                                                 type="button"
                                                 class="btn btn-sm btn-outline-warning"
@@ -49,7 +61,7 @@
                                                 data-nombre="{{ proceso.nombre }}"
                                                 data-descripcion="{{ proceso.descripcion or '' }}"
                                                 data-id-grupo="{{ proceso.id_grupo if proceso.id_grupo is defined else '' }}"
-                                                title="Editar proceso">
+                                                title="Editar actividad">
                                                 <i class="bi bi-pencil-fill text-warning"></i>
                                             </button>
                                             <button
@@ -63,11 +75,7 @@
                                 </tr>
                                 {% endfor %}
                             {% else %}
-                                <tr>
-                                    <td colspan="5" class="text-center text-secondary py-4">
-                                        No hay procesos creados todavía.
-                                    </td>
-                                </tr>
+                 
                             {% endif %}
                         </tbody>
                     </table>
@@ -78,22 +86,32 @@
         <div class="col-xl-3">
             <div class="tabla-panel">
                 <div class="px-4 pt-3 pb-2">
-                    <h5 class="fw-semibold mb-0">Detalle del proceso</h5>
+                    <h5 class="fw-semibold mb-0">Detalle de la actividad</h5>
                 </div>
-                <div class="p-4">
-                    <h5 id="detalleProcesoNombre" class="fw-bold mb-3">Seleccione un proceso</h5>
-                    <div class="mb-3">
-                        <small class="text-secondary">Código</small>
-                        <div id="detalleProcesoCodigo" class="fw-semibold">-</div>
+                <div class="p-4 actividad-detalle-simple">
+                    <div class="actividad-detalle-main mb-3">
+                        <h5 id="detalleProcesoNombre" class="fw-bold mb-2">Seleccione una actividad</h5>
+                        <span id="detalleProcesoCodigo" class="actividad-codigo-chip">-</span>
                     </div>
-                    <div class="mb-3">
-                        <small class="text-secondary">Descripción</small>
-                        <div id="detalleProcesoDescripcion">Seleccione un proceso de la tabla.</div>
+
+                    <div class="actividad-info-row">
+                        <small>Grupo responsable</small>
+                        <strong id="detalleProcesoGrupo">-</strong>
                     </div>
-                    <hr>
-                    <div class="mb-3">
-                        <small class="text-secondary">Grupo asociado</small>
-                        <div id="detalleProcesoGrupo" class="fw-semibold">-</div>
+
+                    <div class="actividad-info-block">
+                        <small>Descripción</small>
+                        <div id="detalleProcesoDescripcion">Seleccione una actividad de la tabla.</div>
+                    </div>
+
+                    <div class="proceso-riesgos-detalle actividad-info-block">
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                            <small>Riesgos asociados</small>
+                            <span id="detalleProcesoRiesgosCount" class="np-count">0</span>
+                        </div>
+                        <div id="detalleProcesoRiesgos" class="proceso-riesgos-list">
+                            <div class="proceso-riesgos-empty">Seleccione una actividad.</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -119,20 +137,1191 @@
             const detalleCodigo = document.getElementById('detalleProcesoCodigo');
             const detalleDescripcion = document.getElementById('detalleProcesoDescripcion');
             const detalleGrupo = document.getElementById('detalleProcesoGrupo');
+            const btnAgregar = document.getElementById('btnAgregarRiesgoProceso');
 
-            if (detalleNombre) detalleNombre.textContent = nombre || 'Proceso';
+            if (detalleNombre) detalleNombre.textContent = nombre || 'Actividad';
             if (detalleCodigo) detalleCodigo.textContent = codigo || '-';
             if (detalleDescripcion) detalleDescripcion.textContent = descripcion || '-';
             if (detalleGrupo) detalleGrupo.textContent = grupo_nombre || '-';
+            if (btnAgregar) {
+                btnAgregar.disabled = !window.detalleProcesoEstado?.idProceso;
+                btnAgregar.onclick = () => abrirAgregarRiesgoProceso(window.detalleProcesoEstado.idProceso, nombre);
+            }
         }
 
         function obtenerDatosProceso(fila) {
             return {
+                id_proceso: fila.dataset.idProceso || '',
                 nombre: fila.dataset.nombre || '',
                 codigo: fila.dataset.codigo || '',
                 descripcion: fila.dataset.descripcion || '',
                 grupo_nombre: fila.dataset.grupoNombre || ''
             };
+        }
+
+        function ocultarPopoverControlesProceso(forzar = false) {
+            const popover = document.getElementById('detalleProcesoControlesPopover');
+            if (!popover || (!forzar && popover.dataset.fijado === '1')) return;
+            popover.classList.add('d-none');
+            popover.innerHTML = '';
+            popover.dataset.fijado = '0';
+            popover.dataset.riesgo = '';
+            popover.style.top = '';
+            popover.style.left = '';
+            popover.style.right = '';
+        }
+
+        function mostrarPopoverControlesProceso(idRiesgo, ancla) {
+            const popover = document.getElementById('detalleProcesoControlesPopover');
+            const estado = window.detalleProcesoEstado || {};
+            const riesgo = (estado.riesgos || []).find((item) => Number(item.id_riesgo) === Number(idRiesgo));
+            if (!popover || !riesgo) return;
+
+            const controles = Array.isArray(riesgo.controles) ? riesgo.controles : [];
+            
+            popover.innerHTML = `
+                <div class="proceso-controles-panel-head">
+                    <div>
+                        <span>Controles relacionados</span>
+                        <strong>${escaparHtml(riesgo.nombre || 'Riesgo')}</strong>
+                    </div>
+                    <em>${controles.length}</em>
+                </div>
+                <div class="proceso-controles-panel-list">
+                    ${controles.map((control) => `
+                        <div class="proceso-control-mini">
+                            <strong>${escaparHtml(control.nombre || 'Control')}</strong>
+                        <small>${escaparHtml(control.tipo || '-')} · ${escaparHtml(control.estado || 'Activo')} · ${escaparHtml(control.solidez_control || 'Media')}</small>
+                            <p>${escaparHtml(control.descripcion || 'Sin descripción registrada.')}</p>
+                        </div>
+                    `).join('') || '<div class="proceso-riesgos-empty">Este riesgo no tiene controles registrados.</div>'}
+                </div>
+            `;
+            popover.classList.remove('d-none');
+
+            // Se intenta colocar a la derecha y se cambia a la izquierda si no hay espacio.
+            const contenedor = popover.closest('.proceso-riesgos-detalle');
+            if (contenedor && ancla) {
+                const contenedorRect = contenedor.getBoundingClientRect();
+                const anclaRect = ancla.getBoundingClientRect();
+                const margen = 10;
+                const ancho = popover.offsetWidth;
+                const espacioDerecha = contenedorRect.right - anclaRect.right;
+                const ponerDerecha = espacioDerecha >= ancho + margen;
+                const izquierda = ponerDerecha
+                    ? anclaRect.right - contenedorRect.left + margen
+                    : anclaRect.left - contenedorRect.left - ancho - margen;
+
+                popover.style.left = `${Math.max(0, izquierda)}px`;
+                popover.style.right = 'auto';
+                popover.style.top = `${Math.max(0, anclaRect.top - contenedorRect.top)}px`;
+            }
+        }
+
+        function alternarPopoverControlesProceso(evento, idRiesgo, ancla) {
+            evento.stopPropagation();
+            const popover = document.getElementById('detalleProcesoControlesPopover');
+            if (!popover) return;
+
+            if (popover.dataset.fijado === '1' && popover.dataset.riesgo === String(idRiesgo)) {
+                popover.dataset.fijado = '0';
+                popover.dataset.riesgo = '';
+                ocultarPopoverControlesProceso();
+                return;
+            }
+
+            popover.dataset.fijado = '1';
+            popover.dataset.riesgo = String(idRiesgo);
+            mostrarPopoverControlesProceso(idRiesgo, ancla);
+        }
+
+        function construirControlesAcordeonProceso(riesgo) {
+            const controles = Array.isArray(riesgo.controles) ? riesgo.controles : [];
+            if (!controles.length) {
+                return '<div class="proceso-acordeon-empty">Este riesgo no tiene controles registrados.</div>';
+            }
+            return controles.map((control) => `
+                <div class="proceso-control-mini">
+                    <strong>${escaparHtml(control.nombre || 'Control')}</strong>
+                    <small>${escaparHtml(control.tipo || '-')} · ${escaparHtml(control.estado || 'Activo')} · ${escaparHtml(control.solidez_control || 'Media')}</small>
+                    <p>${escaparHtml(control.descripcion || 'Sin descripción registrada.')}</p>
+                </div>
+            `).join('');
+        }
+
+        function seleccionarRiesgoDetalleProceso(idRiesgo, ancla) {
+            const acordeones = document.querySelectorAll('.proceso-riesgo-accordion');
+            acordeones.forEach((acordeon) => {
+                const coincide = Number(acordeon.dataset.riesgo) === Number(idRiesgo);
+                const cuerpo = acordeon.querySelector('.proceso-riesgo-accordion-body');
+                const encabezado = acordeon.querySelector('.proceso-riesgo-pill');
+                cuerpo?.classList.toggle('d-none', !coincide || !cuerpo.classList.contains('d-none'));
+                encabezado?.classList.toggle('active', coincide && cuerpo && !cuerpo.classList.contains('d-none'));
+                encabezado?.setAttribute('aria-expanded', coincide && cuerpo && !cuerpo.classList.contains('d-none') ? 'true' : 'false');
+            });
+        }
+
+        function renderizarRiesgosDetalleProceso(riesgos) {
+            const lista = document.getElementById('detalleProcesoRiesgos');
+            const contador = document.getElementById('detalleProcesoRiesgosCount');
+            if (!lista || !contador) return;
+
+            contador.textContent = String(riesgos.length);
+            ocultarPopoverControlesProceso(true);
+
+            lista.innerHTML = riesgos.map((riesgo) => `
+                <div class="proceso-riesgo-accordion" data-riesgo="${Number(riesgo.id_riesgo)}">
+                    <button
+                        type="button"
+                        class="proceso-riesgo-pill"
+                        aria-expanded="false"
+                        onclick="seleccionarRiesgoDetalleProceso(${Number(riesgo.id_riesgo)}, this)">
+                        <span>
+                            <strong>${escaparHtml(riesgo.nombre || 'Riesgo')}</strong>
+                            <small>${escaparHtml(etiquetasAsistente[riesgo.probabilidad] || riesgo.probabilidad || '-')} / ${escaparHtml(etiquetasAsistente[riesgo.impacto] || riesgo.impacto || '-')}</small>
+                        </span>
+                        <span class="proceso-riesgo-pill-side">
+                            <em class="nivel-riesgo-badge ${claseNivelAsistente(riesgo.nivel)}">${escaparHtml(riesgo.nivel || '-')}</em>
+                            <i class="bi bi-chevron-down proceso-acordeon-chevron"></i>
+                        </span>
+                    </button>
+                    <div class="proceso-riesgo-accordion-body d-none">
+                        <div class="proceso-acordeon-controls-title">Controles relacionados <span>${(riesgo.controles || []).length}</span></div>
+                        ${construirControlesAcordeonProceso(riesgo)}
+                    </div>
+                </div>
+                `).join('') || '<div class="proceso-riesgos-empty">Esta actividad no tiene riesgos asociados.</div>';
+        }
+
+        async function cargarRiesgosDetalleProceso(idProceso) {
+            const lista = document.getElementById('detalleProcesoRiesgos');
+            const contador = document.getElementById('detalleProcesoRiesgosCount');
+            if (!lista || !contador) return;
+
+            window.detalleProcesoEstado = {
+                idProceso,
+                riesgos: []
+            };
+            const botonAgregar = document.getElementById('btnAgregarRiesgoProceso');
+            if (botonAgregar) {
+                botonAgregar.disabled = false;
+                botonAgregar.onclick = () => abrirAgregarRiesgoProceso(idProceso, document.getElementById('detalleProcesoNombre')?.textContent || 'Actividad');
+            }
+            contador.textContent = '0';
+            ocultarPopoverControlesProceso(true);
+            lista.innerHTML = '<div class="proceso-riesgos-empty">Cargando riesgos...</div>';
+
+            try {
+                const respuesta = await fetch(`/procesos/${idProceso}/riesgos`, {
+                    headers: { Accept: 'application/json' }
+                });
+                const datos = await respuesta.json();
+                if (!respuesta.ok) {
+                    throw new Error(datos.detail || 'No se pudieron cargar los riesgos de la actividad.');
+                }
+                const riesgos = Array.isArray(datos.riesgos) ? datos.riesgos : [];
+                window.detalleProcesoEstado = {
+                    idProceso,
+                    riesgos
+                };
+                renderizarRiesgosDetalleProceso(riesgos);
+            } catch (error) {
+                window.detalleProcesoEstado = {
+                    idProceso,
+                    riesgos: []
+                };
+                contador.textContent = '0';
+                lista.innerHTML = `<div class="proceso-riesgos-empty">${escaparHtml(error.message)}</div>`;
+            }
+        }
+
+        window.agregarRiesgoProcesoEstado = {
+            idProceso: null,
+            proceso: null,
+            riesgos: [],
+            seleccionados: new Set(),
+            recomendados: new Map(),
+            modo: 'sin_ia',
+            iaConsultada: false,
+            busqueda: '',
+            nivel: ''
+        };
+
+        function abrirAgregarRiesgoProceso(idProceso, nombreProceso) {
+            mostrar_modal('agregar_riesgo_proceso', {
+                id_proceso: idProceso,
+                nombre: nombreProceso || 'actividad'
+            });
+        }
+
+        async function cargarRiesgosDisponiblesProceso(idProceso) {
+            const estado = window.agregarRiesgoProcesoEstado;
+            estado.idProceso = Number(idProceso);
+            estado.seleccionados = new Set();
+            estado.recomendados = new Map();
+            estado.modo = 'sin_ia';
+            estado.iaConsultada = false;
+            const lista = document.getElementById('listaRiesgosProcesoModal');
+            if (!lista) return;
+
+            try {
+                const respuesta = await fetch(`/procesos/${idProceso}/riesgos_disponibles`, { headers: { Accept: 'application/json' } });
+                const datos = await respuesta.json();
+                if (!respuesta.ok) throw new Error(datos.detail || 'No se pudieron cargar los riesgos.');
+                estado.proceso = datos.proceso || null;
+                estado.riesgos = Array.isArray(datos.riesgos) ? datos.riesgos : [];
+                estado.riesgos.forEach((riesgo) => {
+                    if (riesgo.asociado) estado.seleccionados.add(Number(riesgo.id_riesgo));
+                });
+                actualizarFiltroIaRiesgosProcesoModal();
+                renderizarRiesgosProcesoModal();
+            } catch (error) {
+                lista.innerHTML = `<div class="agregar-riesgo-empty">${escaparHtml(error.message)}</div>`;
+            }
+        }
+
+        function filtrarRiesgosProcesoModal() {
+            const estado = window.agregarRiesgoProcesoEstado;
+            estado.busqueda = document.getElementById('buscarRiesgoProcesoModal')?.value || '';
+            estado.nivel = document.getElementById('nivelRiesgoProcesoModal')?.value || '';
+            renderizarRiesgosProcesoModal();
+        }
+
+        function actualizarFiltroIaRiesgosProcesoModal() {
+            const estado = window.agregarRiesgoProcesoEstado;
+            document.querySelectorAll('[data-filtro-riesgo-ia]').forEach((boton) => {
+                const activo = boton.dataset.filtroRiesgoIa === estado.modo;
+                boton.classList.toggle('active', activo);
+                boton.setAttribute('aria-pressed', activo ? 'true' : 'false');
+            });
+        }
+
+        async function cambiarFiltroIaRiesgosProcesoModal(modo) {
+            const estado = window.agregarRiesgoProcesoEstado;
+            estado.modo = modo === 'con_ia' ? 'con_ia' : 'sin_ia';
+            actualizarFiltroIaRiesgosProcesoModal();
+            if (estado.modo === 'con_ia' && !estado.iaConsultada) {
+                const lista = document.getElementById('listaRiesgosProcesoModal');
+                const contador = document.getElementById('contadorRiesgosProcesoModal');
+                if (contador) contador.textContent = 'IA';
+                if (lista) {
+                    lista.innerHTML = `
+                        <div class="agregar-riesgo-empty agregar-riesgo-thinking">
+                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                            <strong>Razonando con IA...</strong>
+                        <small>Buscando los riesgos mas compatibles para esta actividad.</small>
+                        </div>
+                    `;
+                }
+                await recomendarRiesgosParaProcesoDesdeModal({ mantenerModo: true });
+                return;
+            }
+            renderizarRiesgosProcesoModal();
+        }
+
+        function renderizarRiesgosProcesoModal() {
+            const estado = window.agregarRiesgoProcesoEstado;
+            const lista = document.getElementById('listaRiesgosProcesoModal');
+            const contador = document.getElementById('contadorRiesgosProcesoModal');
+            if (!lista) return;
+
+            const texto = estado.busqueda.toLowerCase();
+            const riesgos = estado.riesgos.filter((riesgo) => {
+                const contenido = `${riesgo.nombre || ''} ${riesgo.descripcion || ''}`.toLowerCase();
+                const nivel = String(riesgo.nivel || '').toUpperCase();
+                const id = Number(riesgo.id_riesgo);
+                const visiblePorIa = estado.modo !== 'con_ia' || estado.recomendados.has(id);
+                return visiblePorIa && (!texto || contenido.includes(texto)) && (!estado.nivel || nivel === estado.nivel);
+            });
+
+            if (contador) contador.textContent = `${riesgos.length} riesgos`;
+            lista.innerHTML = riesgos.map((riesgo) => {
+                const id = Number(riesgo.id_riesgo);
+                const recomendado = estado.recomendados.has(id);
+                const asociado = Boolean(riesgo.asociado);
+                return `
+                    <label class="agregar-riesgo-item ${recomendado ? 'recomendado' : ''}">
+                        <input type="checkbox" class="form-check-input" ${estado.seleccionados.has(id) ? 'checked' : ''} onchange="toggleRiesgoProcesoModal(${id}, this.checked)">
+                        <span class="agregar-riesgo-item-main">
+                            <strong>${escaparHtml(riesgo.nombre || 'Riesgo')}</strong>
+                            <small>${escaparHtml(riesgo.descripcion || 'Sin descripción registrada.')}</small>
+                        </span>
+                        ${asociado ? '<span class="agregar-riesgo-bd-badge">En BD</span>' : ''}
+                        ${recomendado ? '<span class="agregar-riesgo-ia-badge">IA recomienda</span>' : ''}
+                        <em class="nivel-riesgo-badge ${claseNivelAsistente(riesgo.nivel)}">${escaparHtml(riesgo.nivel || '-')}</em>
+                    </label>
+                `;
+            }).join('') || `<div class="agregar-riesgo-empty">${estado.modo === 'con_ia' ? 'La IA no encontró nuevos riesgos recomendables para esta actividad.' : 'No hay riesgos disponibles con este filtro.'}</div>`;
+        }
+
+        function toggleRiesgoProcesoModal(idRiesgo, seleccionado) {
+            const set = window.agregarRiesgoProcesoEstado.seleccionados;
+            seleccionado ? set.add(Number(idRiesgo)) : set.delete(Number(idRiesgo));
+        }
+
+        async function recomendarRiesgosParaProcesoDesdeModal(opciones = {}) {
+            const estado = window.agregarRiesgoProcesoEstado;
+            const salida = document.getElementById('resultadoIaAgregarRiesgoProceso');
+            if (!estado.proceso?.nombre) return;
+            estado.modo = 'con_ia';
+            actualizarFiltroIaRiesgosProcesoModal();
+            if (salida) {
+                salida.classList.remove('d-none');
+                salida.textContent = 'Analizando los riesgos existentes...';
+            }
+
+            try {
+                const respuesta = await fetch('/procesos/recomendar_riesgos_nuevo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                    body: JSON.stringify({
+                        id_proceso: estado.idProceso,
+                        nombre: estado.proceso.nombre,
+                        descripcion: estado.proceso.descripcion || ''
+                    })
+                });
+                const datos = await respuesta.json();
+                if (!respuesta.ok) throw new Error(datos.detail || 'No se pudo obtener la recomendación.');
+                estado.recomendados = new Map((datos.recomendacion?.riesgos_aplicables || []).map((item) => [Number(item.id_riesgo), item.motivo || '']));
+                estado.iaConsultada = true;
+                estado.recomendados.forEach((motivo, id) => {
+                    if (estado.riesgos.some((riesgo) => Number(riesgo.id_riesgo) === id)) estado.seleccionados.add(id);
+                });
+                if (salida) salida.textContent = datos.recomendacion?.resumen || 'La IA marcó los riesgos existentes más compatibles.';
+                renderizarRiesgosProcesoModal();
+            } catch (error) {
+                estado.iaConsultada = true;
+                if (salida) salida.textContent = error.message;
+                if (opciones.mantenerModo) renderizarRiesgosProcesoModal();
+            }
+        }
+
+        async function guardarRiesgosProcesoDesdeModal() {
+            const estado = window.agregarRiesgoProcesoEstado;
+            try {
+                const respuesta = await fetch(`/procesos/${estado.idProceso}/agregar_riesgos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                    body: JSON.stringify({ riesgos: Array.from(estado.seleccionados) })
+                });
+                const datos = await respuesta.json();
+                if (!respuesta.ok) throw new Error(datos.detail || 'No se pudieron asociar los riesgos.');
+                cerrar_modal();
+                await cargarRiesgosDetalleProceso(estado.idProceso);
+            } catch (error) {
+                const salida = document.getElementById('resultadoIaAgregarRiesgoProceso');
+                if (salida) {
+                    salida.classList.remove('d-none');
+                    salida.textContent = error.message;
+                }
+            }
+        }
+
+        function escaparHtml(valor) {
+            return String(valor ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function etiquetaEnum(valor) {
+            return escaparHtml(String(valor || '').replaceAll('_', ' ').toLowerCase());
+        }
+
+        const valoresProbabilidadAsistente = {
+            RARA: 1,
+            IMPROBABLE: 2,
+            POSIBLE: 3,
+            PROBABLE: 4,
+            CASI_SEGURO: 5
+        };
+        const valoresImpactoAsistente = {
+            INSIGNIFICANTE: 1,
+            MENOR: 2,
+            MODERADO: 3,
+            MAYOR: 4,
+            CATASTROFICO: 5
+        };
+        const etiquetasAsistente = {
+            RARA: 'Rara',
+            IMPROBABLE: 'Improbable',
+            POSIBLE: 'Posible',
+            PROBABLE: 'Probable',
+            CASI_SEGURO: 'Casi seguro',
+            INSIGNIFICANTE: 'Insignificante',
+            MENOR: 'Menor',
+            MODERADO: 'Moderado',
+            MAYOR: 'Mayor',
+            CATASTROFICO: 'Catastrófico'
+        };
+
+        window.asistenteProcesoEstado = {
+            datos: null,
+            fuente: null,
+            indice: null
+        };
+
+        window.nuevoProcesoRiesgosEstado = {
+            datos: null,
+            riesgoActivo: null,
+            riesgosSeleccionados: new Set(),
+            busquedaRiesgo: '',
+            filtroNivel: '',
+            busquedaControl: '',
+            filtroTipo: ''
+        };
+
+        function calcularNivelAsistente(probabilidad, impacto) {
+            const total = (valoresProbabilidadAsistente[probabilidad] || 1) * (valoresImpactoAsistente[impacto] || 1);
+            if (total === 1) return 'MUY BAJO';
+            if (total <= 4) return 'BAJO';
+            if (total <= 9) return 'MEDIO';
+            if (total <= 16) return 'ALTO';
+            return 'EXTREMO';
+        }
+
+        function claseNivelAsistente(nivel) {
+            const normalizado = String(nivel || '').toUpperCase();
+            if (normalizado === 'MUY BAJO') return 'nivel-muy-bajo';
+            if (normalizado === 'BAJO') return 'nivel-bajo';
+            if (normalizado === 'MEDIO') return 'nivel-medio';
+            if (normalizado === 'ALTO') return 'nivel-alto';
+            if (normalizado === 'EXTREMO' || normalizado === 'CRITICO' || normalizado === 'CRÍTICO') return 'nivel-extremo';
+            return 'nivel-sin-nivel';
+        }
+
+        function construirOpcionesAsistente(catalogo, actual) {
+            return Object.keys(catalogo).map((valor) => `
+                <option value="${valor}" ${valor === actual ? 'selected' : ''}>${escaparHtml(etiquetasAsistente[valor] || valor)}</option>
+            `).join('');
+        }
+
+        function normalizarRiesgoIa(riesgo, indice) {
+            return {
+                id_virtual: `IA-${indice + 1}`,
+                nombre: riesgo.nombre || `Riesgo sugerido ${indice + 1}`,
+                descripcion: riesgo.descripcion || '',
+                causa: riesgo.causa || '',
+                consecuencia: riesgo.consecuencia || '',
+                probabilidad: riesgo.probabilidad || 'POSIBLE',
+                impacto: riesgo.impacto || 'MODERADO',
+                nivel: calcularNivelAsistente(riesgo.probabilidad || 'POSIBLE', riesgo.impacto || 'MODERADO'),
+                controles: Array.isArray(riesgo.controles) ? riesgo.controles : [],
+                sugerido: true
+            };
+        }
+
+        function riesgoSeleccionadoAsistente() {
+            const estado = window.asistenteProcesoEstado;
+            if (!estado.datos) return null;
+            if (estado.fuente === 'sistema') {
+                return (estado.datos.riesgos_sistema || [])[estado.indice] || null;
+            }
+            if (estado.fuente === 'ia') {
+                return ((estado.datos.recomendaciones || {}).riesgos || []).map(normalizarRiesgoIa)[estado.indice] || null;
+            }
+            return null;
+        }
+
+        function abrirModalRecomendaciones(titulo, contenido) {
+            const modalElemento = document.getElementById('projectModal');
+            const modalTitulo = document.getElementById('projectModalLabel');
+            const modalCuerpo = document.getElementById('cuerpo_modal');
+            const modalFooter = document.getElementById('modal_footer');
+            const modalDialog = document.querySelector('#projectModal .modal-dialog');
+
+            if (!modalElemento || !modalTitulo || !modalCuerpo || !modalFooter) {
+                return;
+            }
+
+            if (modalDialog) {
+                modalDialog.className = 'modal-dialog modal-dialog-centered modal-xl asistente-ia-proceso-dialog';
+            }
+
+            modalTitulo.textContent = titulo;
+            modalCuerpo.innerHTML = contenido;
+            modalFooter.innerHTML = `
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            `;
+            bootstrap.Modal.getOrCreateInstance(modalElemento).show();
+        }
+
+        function construirHtmlRecomendaciones(datos) {
+            const proceso = datos.proceso || {};
+            const riesgosSistema = datos.riesgos_sistema || [];
+            const riesgosIa = ((datos.recomendaciones || {}).riesgos || []).map(normalizarRiesgoIa);
+
+            return `
+                <div class="asistente-proceso">
+                    <div class="asistente-proceso-hero">
+                        <div>
+                            <span>Asistente IA de la actividad</span>
+                            <strong>${escaparHtml(proceso.nombre)}</strong>
+                            <small>${escaparHtml(proceso.descripcion || 'Sin descripción registrada.')}</small>
+                        </div>
+                        <div class="asistente-proceso-kpis">
+                            <span><b>${riesgosSistema.length}</b> riesgos sistema</span>
+                            <span><b>${riesgosIa.length}</b> sugeridos IA</span>
+                            <span><b>${riesgosSistema.filter((r) => r.asociado).length}</b> asociados</span>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info py-2 mb-3">
+                        ${escaparHtml((datos.recomendaciones || {}).resumen || 'La IA priorizó riesgos sin duplicar los registros existentes enviados como contexto.')}
+                    </div>
+
+                    <div class="asistente-proceso-grid">
+                        <section class="asistente-panel">
+                            <div class="asistente-panel-head">
+                                <div>
+                                    <strong>Riesgos en el sistema</strong>
+                                    <small>Selecciona uno para revisar sus controles.</small>
+                                </div>
+                                <span>${riesgosSistema.length}</span>
+                            </div>
+                            <div class="asistente-lista" id="asistenteRiesgosSistema"></div>
+                        </section>
+
+                        <section class="asistente-panel">
+                            <div class="asistente-panel-head">
+                                <div>
+                                    <strong>Riesgos sugeridos IA</strong>
+                                    <small>Nuevos candidatos para esta actividad.</small>
+                                </div>
+                                <span>${riesgosIa.length}</span>
+                            </div>
+                            <div class="asistente-lista" id="asistenteRiesgosIa"></div>
+                        </section>
+
+                        <section class="asistente-panel asistente-panel-detalle">
+                            <div class="asistente-panel-head">
+                                <div>
+                                    <strong>Riesgo y controles</strong>
+                                    <small>Edita valores antes de guardar en una siguiente etapa.</small>
+                                </div>
+                                <span id="asistenteDetalleFuente">-</span>
+                            </div>
+                            <div id="asistenteDetalle" class="asistente-empty">
+                                <i class="bi bi-suit-diamond-fill"></i>
+                                <strong>Selecciona un riesgo</strong>
+                                <span>Verás probabilidad, impacto, mapa 5x5 y controles relacionados.</span>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderizarAsistenteProceso() {
+            const estado = window.asistenteProcesoEstado;
+            if (!estado.datos) return;
+            const sistema = document.getElementById('asistenteRiesgosSistema');
+            const ia = document.getElementById('asistenteRiesgosIa');
+            if (!sistema || !ia) return;
+
+            sistema.innerHTML = (estado.datos.riesgos_sistema || []).map((riesgo, indice) => construirItemRiesgoAsistente(riesgo, 'sistema', indice)).join('')
+                || '<div class="asistente-empty-mini">No hay riesgos registrados.</div>';
+
+            ia.innerHTML = (((estado.datos.recomendaciones || {}).riesgos || []).map(normalizarRiesgoIa)).map((riesgo, indice) => construirItemRiesgoAsistente(riesgo, 'ia', indice)).join('')
+                || '<div class="asistente-empty-mini">La IA no sugirió riesgos.</div>';
+
+            renderizarDetalleAsistente();
+        }
+
+        function construirItemRiesgoAsistente(riesgo, fuente, indice) {
+            const activo = window.asistenteProcesoEstado.fuente === fuente && window.asistenteProcesoEstado.indice === indice;
+            const nivel = riesgo.nivel || calcularNivelAsistente(riesgo.probabilidad, riesgo.impacto);
+            const asociado = riesgo.asociado ? '<span class="asistente-pill success">Asociado</span>' : '';
+            const origen = fuente === 'ia' ? '<span class="asistente-pill ai">IA</span>' : '<span class="asistente-pill">Sistema</span>';
+            return `
+                <button type="button" class="asistente-risk-item ${activo ? 'active' : ''}" onclick="seleccionarRiesgoAsistente('${fuente}', ${indice})">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <strong>${escaparHtml(riesgo.nombre)}</strong>
+                        <span class="nivel-riesgo-badge ${claseNivelAsistente(nivel)}">${escaparHtml(nivel)}</span>
+                    </div>
+                    <small>${escaparHtml(riesgo.descripcion || 'Sin descripción registrada.')}</small>
+                    <div class="asistente-risk-meta">
+                        ${origen}
+                        ${asociado}
+                        <span>${escaparHtml(etiquetasAsistente[riesgo.probabilidad] || riesgo.probabilidad || '-')}</span>
+                        <span>${escaparHtml(etiquetasAsistente[riesgo.impacto] || riesgo.impacto || '-')}</span>
+                    </div>
+                </button>
+            `;
+        }
+
+        function seleccionarRiesgoAsistente(fuente, indice) {
+            window.asistenteProcesoEstado.fuente = fuente;
+            window.asistenteProcesoEstado.indice = indice;
+            renderizarAsistenteProceso();
+        }
+
+        function construirMapaAsistente(probabilidad, impacto) {
+            const x = (valoresImpactoAsistente[impacto] || 1) - 1;
+            const y = 5 - (valoresProbabilidadAsistente[probabilidad] || 1);
+            let celdas = '';
+            for (let fila = 0; fila < 5; fila += 1) {
+                for (let col = 0; col < 5; col += 1) {
+                    const activo = fila === y && col === x;
+                    const puntaje = (5 - fila) * (col + 1);
+                    celdas += `<div class="asistente-map-cell ${activo ? 'active' : ''}">${activo ? 'R.I.' : puntaje}</div>`;
+                }
+            }
+            return celdas;
+        }
+
+        function renderizarDetalleAsistente() {
+            const detalle = document.getElementById('asistenteDetalle');
+            const fuente = document.getElementById('asistenteDetalleFuente');
+            const riesgo = riesgoSeleccionadoAsistente();
+            if (!detalle) return;
+
+            if (!riesgo) {
+                if (fuente) fuente.textContent = '-';
+                detalle.className = 'asistente-empty';
+                detalle.innerHTML = `
+                    <i class="bi bi-suit-diamond-fill"></i>
+                    <strong>Selecciona un riesgo</strong>
+                    <span>Verás probabilidad, impacto, mapa 5x5 y controles relacionados.</span>
+                `;
+                return;
+            }
+
+            const controles = Array.isArray(riesgo.controles) ? riesgo.controles : [];
+            const nivel = riesgo.nivel || calcularNivelAsistente(riesgo.probabilidad, riesgo.impacto);
+            if (fuente) fuente.textContent = window.asistenteProcesoEstado.fuente === 'ia' ? 'IA' : 'Sistema';
+            detalle.className = 'asistente-detalle';
+            detalle.innerHTML = `
+                <div class="asistente-editor">
+                    <div class="mb-2">
+                        <label class="form-label modal-label">Nombre del riesgo</label>
+                        <input class="form-control form-control-sm" value="${escaparHtml(riesgo.nombre || '')}">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label modal-label">Descripción</label>
+                        <textarea class="form-control form-control-sm" rows="2">${escaparHtml(riesgo.descripcion || '')}</textarea>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label modal-label">Probabilidad</label>
+                            <select class="form-select form-select-sm" id="asistenteProbabilidad" onchange="actualizarMapaDetalleAsistente()">
+                                ${construirOpcionesAsistente(valoresProbabilidadAsistente, riesgo.probabilidad)}
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label modal-label">Impacto</label>
+                            <select class="form-select form-select-sm" id="asistenteImpacto" onchange="actualizarMapaDetalleAsistente()">
+                                ${construirOpcionesAsistente(valoresImpactoAsistente, riesgo.impacto)}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="asistente-nivel-box mt-2">
+                        <span>Nivel calculado</span>
+                        <strong id="asistenteNivel" class="nivel-riesgo-badge ${claseNivelAsistente(nivel)}">${escaparHtml(nivel)}</strong>
+                    </div>
+                </div>
+
+                <div class="asistente-map-wrap">
+                    <div class="asistente-map-title">Matriz inherente 5x5</div>
+                    <div class="asistente-map" id="asistenteMapa">${construirMapaAsistente(riesgo.probabilidad, riesgo.impacto)}</div>
+                </div>
+
+                <div class="asistente-controles">
+                    <div class="asistente-section-title">
+                        <strong>${window.asistenteProcesoEstado.fuente === 'ia' ? 'Controles sugeridos por IA' : 'Controles existentes'}</strong>
+                        <span>${controles.length}</span>
+                    </div>
+                    ${controles.length ? controles.map(construirControlAsistente).join('') : '<div class="asistente-empty-mini">Este riesgo no tiene controles visibles.</div>'}
+                </div>
+
+                <div class="asistente-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled>Usar riesgo seleccionado</button>
+                    <button type="button" class="btn btn-sm btn_primario" disabled>Guardar selección</button>
+                </div>
+            `;
+        }
+
+        function construirControlAsistente(control, indice) {
+            return `
+                <label class="asistente-control-item">
+                    <input type="checkbox" class="form-check-input" checked>
+                    <div>
+                        <div class="d-flex justify-content-between gap-2">
+                            <strong>${escaparHtml(control.nombre || `Control ${indice + 1}`)}</strong>
+                            <span>${escaparHtml(control.tipo || 'Control')}</span>
+                        </div>
+                        <small>${escaparHtml(control.descripcion || 'Sin descripción registrada.')}</small>
+                        <div class="asistente-control-grid">
+                            <em>Solidez: ${escaparHtml(control.solidez_control || 'Media')}</em>
+                            <em>Prob.: ${escaparHtml(control.mitigacion_probabilidad ?? 0)}%</em>
+                            <em>Imp.: ${escaparHtml(control.mitigacion_impacto ?? 0)}%</em>
+                        </div>
+                    </div>
+                </label>
+            `;
+        }
+
+        function actualizarMapaDetalleAsistente() {
+            const probabilidad = document.getElementById('asistenteProbabilidad')?.value || 'RARA';
+            const impacto = document.getElementById('asistenteImpacto')?.value || 'INSIGNIFICANTE';
+            const nivel = calcularNivelAsistente(probabilidad, impacto);
+            const mapa = document.getElementById('asistenteMapa');
+            const nivelSalida = document.getElementById('asistenteNivel');
+            if (mapa) mapa.innerHTML = construirMapaAsistente(probabilidad, impacto);
+            if (nivelSalida) {
+                nivelSalida.className = `nivel-riesgo-badge ${claseNivelAsistente(nivel)}`;
+                nivelSalida.textContent = nivel;
+            }
+        }
+
+        function renderizarResultadoIaNuevoProceso(datos) {
+            const contenedor = document.getElementById('resultadoIaNuevoProceso');
+            if (!contenedor) return;
+
+            const estado = window.nuevoProcesoRiesgosEstado;
+            estado.datos = datos;
+            estado.riesgoActivo = (datos.recomendacion?.riesgos_aplicables?.[0]?.id_riesgo)
+                || (datos.riesgos_sistema?.[0]?.id_riesgo)
+                || null;
+            // Las recomendaciones llegan seleccionadas para que el usuario pueda
+            // revisar y desmarcar rápidamente las que no correspondan.
+            estado.riesgosSeleccionados = new Set(
+                (datos.recomendacion?.riesgos_aplicables || [])
+                    .map((item) => Number(item.id_riesgo))
+                    .filter((id) => Number.isInteger(id) && id > 0)
+            );
+            estado.busquedaRiesgo = '';
+            estado.filtroNivel = '';
+            estado.busquedaControl = '';
+            estado.filtroTipo = '';
+
+            contenedor.innerHTML = `
+                <div class="nuevo-proceso-assoc">
+                    <div class="nuevo-proceso-assoc-head">
+                        <div>
+                            <span>Análisis IA</span>
+                <strong>${escaparHtml(datos.recomendacion?.resumen || 'Selecciona riesgos y controles existentes para asociarlos a la actividad.')}</strong>
+                        </div>
+                    </div>
+
+                    <div class="nuevo-proceso-assoc-grid">
+                        <section class="nuevo-proceso-assoc-panel">
+                            <div class="nuevo-proceso-assoc-title">
+                                <strong>Riesgos</strong>
+                                <span id="nuevoProcesoRiesgosCount">0</span>
+                            </div>
+                            <div class="nuevo-proceso-toolbar">
+                                <input class="form-control form-control-sm" placeholder="Buscar riesgo" oninput="filtrarRiesgosNuevoProceso(this.value)">
+                                <select class="form-select form-select-sm" onchange="filtrarNivelNuevoProceso(this.value)">
+                                    <option value="">Todos los niveles</option>
+                                    <option value="ALTO">Alto</option>
+                                    <option value="MEDIO">Medio</option>
+                                    <option value="BAJO">Bajo</option>
+                                    <option value="MUY BAJO">Muy bajo</option>
+                                    <option value="EXTREMO">Extremo</option>
+                                </select>
+                            </div>
+                            <div class="nuevo-proceso-bulk">
+                                <button type="button" onclick="seleccionarTodosRiesgosNuevoProceso(true)">Seleccionar todos</button>
+                                <button type="button" onclick="seleccionarTodosRiesgosNuevoProceso(false)">Deseleccionar todos</button>
+                            </div>
+                            <div class="nuevo-proceso-risk-list" id="nuevoProcesoRiskList"></div>
+                        </section>
+
+                        <section class="nuevo-proceso-assoc-panel">
+                            <div class="nuevo-proceso-assoc-title">
+                                <strong>Controles relacionados</strong>
+                                <span id="nuevoProcesoControlesCount">0</span>
+                            </div>
+                            <div class="nuevo-proceso-risk-explanation-slot" id="nuevoProcesoRiskExplanation"></div>
+                            <div class="nuevo-proceso-toolbar">
+                                <input class="form-control form-control-sm" placeholder="Buscar control" oninput="filtrarControlesNuevoProceso(this.value)">
+                                <select class="form-select form-select-sm" onchange="filtrarTipoControlNuevoProceso(this.value)">
+                                    <option value="">Todos los tipos</option>
+                                    <option value="Preventivo">Preventivo</option>
+                                    <option value="Detectivo">Detectivo</option>
+                                    <option value="Correctivo">Correctivo</option>
+                                </select>
+                            </div>
+                            <div class="nuevo-proceso-bulk">
+                                <span class="nuevo-proceso-help-text">Los controles son informativos y ya pertenecen a riesgos registrados.</span>
+                            </div>
+                            <div class="nuevo-proceso-control-list" id="nuevoProcesoControlList"></div>
+                        </section>
+                    </div>
+                </div>
+            `;
+
+            sincronizarRiesgosSeleccionadosNuevoProceso();
+            renderizarAsociacionNuevoProceso();
+        }
+
+        function aplicarSugerenciasFormularioNuevoProceso(datos) {
+            const form = document.getElementById('frm_crearproceso');
+            if (!form) return;
+            const descripcion = form.querySelector('[name="descripcion"]');
+            const grupo = form.querySelector('[name="id_grupo"]');
+            const recomendacion = datos.recomendacion || {};
+
+            if (descripcion && !descripcion.value.trim() && recomendacion.descripcion_sugerida) {
+                descripcion.value = recomendacion.descripcion_sugerida;
+                descripcion.dataset.iaGenerada = '1';
+            }
+            if (grupo && recomendacion.id_grupo_sugerido) {
+                grupo.value = String(recomendacion.id_grupo_sugerido);
+                grupo.dataset.iaGenerada = '1';
+            }
+        }
+
+        function limpiarSugerenciaIaNuevoProceso(form) {
+            if (!form) return;
+            const descripcion = form.querySelector('[name="descripcion"]');
+            const grupo = form.querySelector('[name="id_grupo"]');
+            const resultado = document.getElementById('resultadoIaNuevoProceso');
+
+            if (descripcion?.dataset.iaGenerada === '1') {
+                descripcion.value = '';
+                descripcion.dataset.iaGenerada = '0';
+            }
+            if (grupo?.dataset.iaGenerada === '1') {
+                grupo.value = '';
+                grupo.dataset.iaGenerada = '0';
+            }
+            if (resultado) {
+                resultado.innerHTML = '';
+            }
+
+            window.nuevoProcesoRiesgosEstado = {
+                datos: null,
+                riesgoActivo: null,
+                riesgosSeleccionados: new Set(),
+                busquedaRiesgo: '',
+                filtroNivel: '',
+                busquedaControl: '',
+                filtroTipo: ''
+            };
+            sincronizarRiesgosSeleccionadosNuevoProceso(form);
+        }
+
+        function mapaRecomendacionesIaNuevoProceso() {
+            const estado = window.nuevoProcesoRiesgosEstado;
+            const riesgos = estado.datos?.recomendacion?.riesgos_aplicables || [];
+            const mapa = new Map();
+            riesgos.forEach((item) => {
+                mapa.set(Number(item.id_riesgo), {
+                    motivo: item.motivo || '',
+                    prioridad: item.prioridad || '',
+                });
+            });
+            return mapa;
+        }
+
+        function riesgoActivoNuevoProceso() {
+            const estado = window.nuevoProcesoRiesgosEstado;
+            return (estado.datos?.riesgos_sistema || []).find((riesgo) => Number(riesgo.id_riesgo) === Number(estado.riesgoActivo));
+        }
+
+        function controlesParaRiesgoNuevoProceso(riesgo) {
+            if (!riesgo) return [];
+            const estado = window.nuevoProcesoRiesgosEstado;
+            return (riesgo.controles || []).filter((control) => {
+                if (!control.id_control || !String(control.nombre || '').trim()) {
+                    return false;
+                }
+                const texto = `${control.nombre || ''} ${control.descripcion || ''}`.toLowerCase();
+                const coincideBusqueda = !estado.busquedaControl || texto.includes(estado.busquedaControl.toLowerCase());
+                const coincideTipo = !estado.filtroTipo || control.tipo === estado.filtroTipo;
+                return coincideBusqueda && coincideTipo;
+            });
+        }
+
+        function renderizarAsociacionNuevoProceso() {
+            const estado = window.nuevoProcesoRiesgosEstado;
+            const recomendaciones = mapaRecomendacionesIaNuevoProceso();
+            const riskList = document.getElementById('nuevoProcesoRiskList');
+            const controlList = document.getElementById('nuevoProcesoControlList');
+            const riskExplanation = document.getElementById('nuevoProcesoRiskExplanation');
+            const riesgosCount = document.getElementById('nuevoProcesoRiesgosCount');
+            const controlesCount = document.getElementById('nuevoProcesoControlesCount');
+            if (!riskList || !controlList || !riskExplanation) return;
+
+            const riesgosRecomendados = (estado.datos?.recomendacion?.riesgos_aplicables || [])
+                .map((item) => (estado.datos?.riesgos_sistema || []).find((riesgo) => Number(riesgo.id_riesgo) === Number(item.id_riesgo)))
+                .filter(Boolean);
+            const riesgos = riesgosRecomendados.filter((riesgo) => {
+                const texto = `${riesgo.nombre || ''}`.toLowerCase();
+                const nivel = String(riesgo.nivel || '').toUpperCase();
+                const coincideBusqueda = !estado.busquedaRiesgo || texto.includes(estado.busquedaRiesgo.toLowerCase());
+                const coincideNivel = !estado.filtroNivel || nivel === estado.filtroNivel;
+                return coincideBusqueda && coincideNivel;
+            });
+
+            const idsRiesgosVisibles = new Set(riesgos.map((riesgo) => Number(riesgo.id_riesgo)));
+            if (!riesgos.length) {
+                estado.riesgoActivo = null;
+            } else if (!idsRiesgosVisibles.has(Number(estado.riesgoActivo))) {
+                estado.riesgoActivo = Number(riesgos[0].id_riesgo);
+            }
+
+            riskList.innerHTML = riesgos.map((riesgo) => {
+                const id = Number(riesgo.id_riesgo);
+                const recomendada = recomendaciones.has(id);
+                const activo = Number(estado.riesgoActivo) === id;
+                const controles = controlesParaRiesgoNuevoProceso(riesgo);
+                const nivel = riesgo.nivel || calcularNivelAsistente(riesgo.probabilidad, riesgo.impacto);
+                return `
+                    <div class="np-risk-row ${activo ? 'active' : ''}" onclick="activarRiesgoNuevoProceso(${id})">
+                        <input type="checkbox" class="form-check-input" ${estado.riesgosSeleccionados.has(id) ? 'checked' : ''} onclick="event.stopPropagation();toggleRiesgoNuevoProceso(${id}, this.checked)">
+                        <div class="np-risk-main">
+                            <strong>${escaparHtml(riesgo.nombre || 'Riesgo')}</strong>
+                            ${recomendada ? '<span class="np-ia-badge">✔ Alta compatibilidad</span>' : ''}
+                            <small>${escaparHtml(etiquetasAsistente[riesgo.probabilidad] || riesgo.probabilidad || '-')} / ${escaparHtml(etiquetasAsistente[riesgo.impacto] || riesgo.impacto || '-')}</small>
+                        </div>
+                        <span class="nivel-riesgo-badge ${claseNivelAsistente(nivel)}">${escaparHtml(nivel)}</span>
+                        <span class="np-count">${controles.length}</span>
+                    </div>
+                `;
+            }).join('') || '<div class="nuevo-proceso-empty">La IA no encontró riesgos importantes con ese filtro.</div>';
+
+            const riesgo = riesgoActivoNuevoProceso();
+            const controles = controlesParaRiesgoNuevoProceso(riesgo);
+            const controlesRegistrados = (riesgo?.controles || []).filter((control) => control.id_control && String(control.nombre || '').trim());
+            const explicacionIa = riesgo ? recomendaciones.get(Number(riesgo.id_riesgo))?.motivo || '' : '';
+
+            if (riesgo) {
+                riskExplanation.innerHTML = `
+                    <div class="np-risk-explanation">
+                        <div class="np-risk-explanation-head">
+                            <div>
+                                <span>Riesgo seleccionado</span>
+                                <strong>${escaparHtml(riesgo.nombre || 'Riesgo')}</strong>
+                            </div>
+                            <em class="nivel-riesgo-badge ${claseNivelAsistente(riesgo.nivel)}">${escaparHtml(riesgo.nivel || '-')}</em>
+                        </div>
+                        <p>${escaparHtml(riesgo.descripcion || 'Sin descripción registrada.')}</p>
+                        <div class="np-risk-explanation-reason">
+                            <span>Por qué se seleccionó</span>
+                            <p>${escaparHtml(explicacionIa || 'Este riesgo fue seleccionado desde la lista recomendada para la actividad. Revise su descripción y controles antes de guardarlo.')}</p>
+                        </div>
+                        <div class="nuevo-proceso-risk-tags">
+                            <span>${escaparHtml(etiquetasAsistente[riesgo.probabilidad] || riesgo.probabilidad || '-')}</span>
+                            <span>${escaparHtml(etiquetasAsistente[riesgo.impacto] || riesgo.impacto || '-')}</span>
+                        </div>
+                    </div>
+                `;
+                const controlesHtml = controles.map((control) => {
+                    const efectividad = control.solidez_control || 'Media';
+                    return `
+                        <div class="np-control-row" tabindex="0">
+                            <div class="np-control-main">
+                                <div>
+                                    <strong>${escaparHtml(control.nombre || 'Control')}</strong>
+                                </div>
+                            </div>
+                            <span>${escaparHtml(control.tipo || '-')}</span>
+                            <span>${escaparHtml(control.estado || 'Activo')}</span>
+                            <span>${escaparHtml(efectividad)}</span>
+                            <div class="np-control-hovercard" role="tooltip">
+                                <strong>${escaparHtml(control.nombre || 'Control')}</strong>
+                                <p>${escaparHtml(control.descripcion || 'Sin descripción registrada.')}</p>
+                                <small><b>Objetivo:</b> ${escaparHtml(control.objetivo || control.objetivo_control || 'No registrado.')}</small>
+                                <small><b>Aplica normalmente a:</b> ${escaparHtml(riesgo.nombre || 'Riesgo seleccionado')}</small>
+                            </div>
+                        </div>
+                    `;
+                }).join('') || `<div class="nuevo-proceso-empty">${controlesRegistrados.length ? 'No hay controles que coincidan con el filtro.' : 'Este riesgo no tiene controles registrados en el sistema.'}</div>`;
+
+                controlList.innerHTML = `
+                    <div class="np-control-panel-block">
+                        <div class="np-control-panel-title">
+                            <span>Controles registrados</span>
+                            <em>${controles.length}</em>
+                        </div>
+                        <div class="np-control-table-head">
+                            <span>Control</span>
+                            <span>Tipo</span>
+                            <span>Estado</span>
+                            <span>Efectividad</span>
+                        </div>
+                        ${controlesHtml}
+                    </div>
+                `;
+            } else {
+                riskExplanation.innerHTML = '';
+                controlList.innerHTML = '<div class="nuevo-proceso-empty">Selecciona un riesgo recomendado para ver su explicación y controles.</div>';
+            }
+
+            if (riesgosCount) riesgosCount.textContent = `${riesgos.length} importantes`;
+            if (controlesCount) controlesCount.textContent = riesgo ? `${controles.length} controles` : '0 controles';
+        }
+
+        function activarRiesgoNuevoProceso(idRiesgo) {
+            window.nuevoProcesoRiesgosEstado.riesgoActivo = Number(idRiesgo);
+            renderizarAsociacionNuevoProceso();
+        }
+
+        function toggleRiesgoNuevoProceso(idRiesgo, seleccionado) {
+            const set = window.nuevoProcesoRiesgosEstado.riesgosSeleccionados;
+            seleccionado ? set.add(Number(idRiesgo)) : set.delete(Number(idRiesgo));
+            sincronizarRiesgosSeleccionadosNuevoProceso();
+        }
+
+        function sincronizarRiesgosSeleccionadosNuevoProceso(formulario = null) {
+            const form = formulario || document.getElementById('frm_crearproceso');
+            const contenedor = form?.querySelector('#riesgosSeleccionadosNuevoProcesoInputs');
+            if (!contenedor) return;
+
+            const ids = Array.from(window.nuevoProcesoRiesgosEstado.riesgosSeleccionados || [])
+                .map((id) => Number(id))
+                .filter((id) => Number.isInteger(id) && id > 0);
+
+            contenedor.innerHTML = ids.map((id) => `
+                <input type="hidden" name="riesgos_asociados" value="${id}">
+            `).join('');
+        }
+
+        function filtrarRiesgosNuevoProceso(valor) {
+            window.nuevoProcesoRiesgosEstado.busquedaRiesgo = valor || '';
+            renderizarAsociacionNuevoProceso();
+        }
+
+        function filtrarNivelNuevoProceso(valor) {
+            window.nuevoProcesoRiesgosEstado.filtroNivel = valor || '';
+            renderizarAsociacionNuevoProceso();
+        }
+
+        function filtrarControlesNuevoProceso(valor) {
+            window.nuevoProcesoRiesgosEstado.busquedaControl = valor || '';
+            renderizarAsociacionNuevoProceso();
+        }
+
+        function filtrarTipoControlNuevoProceso(valor) {
+            window.nuevoProcesoRiesgosEstado.filtroTipo = valor || '';
+            renderizarAsociacionNuevoProceso();
+        }
+
+        function seleccionarTodosRiesgosNuevoProceso(seleccionar) {
+            const estado = window.nuevoProcesoRiesgosEstado;
+            const riesgos = (estado.datos?.recomendacion?.riesgos_aplicables || [])
+                .map((item) => (estado.datos?.riesgos_sistema || []).find((riesgo) => Number(riesgo.id_riesgo) === Number(item.id_riesgo)))
+                .filter(Boolean);
+            estado.riesgosSeleccionados = seleccionar
+                ? new Set(riesgos.map((riesgo) => Number(riesgo.id_riesgo)))
+                : new Set();
+            sincronizarRiesgosSeleccionadosNuevoProceso();
+            renderizarAsociacionNuevoProceso();
+        }
+
+        async function recomendarRiesgosNuevoProceso(boton) {
+            const form = document.getElementById('frm_crearproceso');
+            const contenedor = document.getElementById('resultadoIaNuevoProceso');
+            if (!form || !contenedor) return;
+
+            const nombre = form.querySelector('[name="nombre"]')?.value.trim() || '';
+            const descripcionCampo = form.querySelector('[name="descripcion"]');
+            const descripcion = descripcionCampo?.dataset.iaGenerada === '1'
+                ? ''
+                : (descripcionCampo?.value.trim() || '');
+            const selectGrupo = form.querySelector('[name="id_grupo"]');
+            const grupoNombre = selectGrupo?.dataset.iaGenerada === '1'
+                ? ''
+                : (selectGrupo?.selectedOptions?.[0]?.textContent?.trim() || '');
+            const gruposDisponibles = (window.catalogosProcesos?.grupos || []).map((grupo) => ({
+                id_grupo: grupo.id_grupo,
+                nombre: grupo.nombre
+            }));
+            const icono = boton.querySelector('i');
+            const claseIcono = icono ? icono.className : '';
+
+            if (nombre.length < 3) {
+                mostrar_mensaje_modal('Escribe el nombre de la actividad antes de usar IA.', 'warning');
+                return;
+            }
+
+            boton.disabled = true;
+            if (icono) icono.className = 'spinner-border spinner-border-sm text-info';
+            contenedor.innerHTML = `
+                <div class="nuevo-proceso-ia-loading">
+                    <span class="spinner-border spinner-border-sm text-info"></span>
+                    Analizando riesgos existentes del sistema...
+                </div>
+            `;
+
+            try {
+                const respuesta = await fetch('/procesos/recomendar_riesgos_nuevo', {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        nombre,
+                        descripcion,
+                        grupo_nombre: grupoNombre === 'Seleccione un grupo' ? '' : grupoNombre,
+                        grupos_disponibles: gruposDisponibles
+                    })
+                });
+                const datos = await respuesta.json();
+                if (!respuesta.ok) {
+                    throw new Error(datos.detail || 'No se pudo generar la recomendación.');
+                }
+                aplicarSugerenciasFormularioNuevoProceso(datos);
+                renderizarResultadoIaNuevoProceso(datos);
+            } catch (error) {
+                contenedor.innerHTML = '';
+                mostrar_mensaje_modal(error.message, 'danger');
+            } finally {
+                boton.disabled = false;
+                if (icono) icono.className = claseIcono;
+            }
+        }
+
+        async function recomendarRiesgosProceso(boton) {
+            const idProceso = boton.dataset.idProceso;
+            const nombreProceso = boton.dataset.nombre || 'actividad';
+            const icono = boton.querySelector('i');
+            const claseIcono = icono ? icono.className : '';
+
+            boton.disabled = true;
+            if (icono) {
+                icono.className = 'spinner-border spinner-border-sm text-info';
+            }
+
+            try {
+                const respuesta = await fetch(`/procesos/${idProceso}/recomendar_riesgos`, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                const datos = await respuesta.json();
+
+                if (!respuesta.ok) {
+                    throw new Error(datos.detail || 'No se pudo generar la recomendación.');
+                }
+
+                abrirModalRecomendaciones(
+                    `Asistente IA - ${nombreProceso}`,
+                    construirHtmlRecomendaciones(datos)
+                );
+                window.asistenteProcesoEstado.datos = datos;
+                window.asistenteProcesoEstado.fuente = (datos.riesgos_sistema || []).length ? 'sistema' : 'ia';
+                window.asistenteProcesoEstado.indice = 0;
+                renderizarAsistenteProceso();
+            } catch (error) {
+                if (typeof mostrar_mensaje_modal === 'function') {
+                    mostrar_mensaje_modal(error.message, 'danger');
+                } else {
+                    alert(error.message);
+                }
+            } finally {
+                boton.disabled = false;
+                if (icono) {
+                    icono.className = claseIcono;
+                }
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -150,6 +1339,7 @@
                     seleccionarFilaProceso(fila);
                     const datos = obtenerDatosProceso(fila);
                     mostrarDetalleProceso(datos.nombre, datos.codigo, datos.descripcion, datos.grupo_nombre);
+                    cargarRiesgosDetalleProceso(datos.id_proceso);
                 });
             }
 

@@ -491,7 +491,7 @@ def construir_excel_detalle_riesgo(riesgo):
     filas.append(_excel_row(6, [("A", "Descripción", 3), ("B", riesgo["descripcion"] or "Sin descripción registrada.", 16)]))
     merges.append("B6:H6")
     filas.append(_excel_row(7, [("A", "Riesgo inherente", 3), ("B", inherente.get("riesgo_inherente_exacto", residual.get("riesgo_inherente", 0)), 16), ("C", "Prob. inicial", 3), ("D", f"{inherente.get('probabilidad_inicial', residual.get('probabilidad_inicial', 0))}%", 16), ("F", "Impacto inicial", 3), ("G", f"{inherente.get('impacto_inicial', residual.get('impacto_inicial', 0))}%", 16)]))
-    filas.append(_excel_row(8, [("A", "Ubicación", 3), ("B", ubicacion, 16), ("C", "Procesos", 3), ("D", len(riesgo.get("procesos", [])), 16), ("F", "Controles", 3), ("G", residual.get("total_controles_evaluados", len(riesgo.get("controles", []))), 16)]))
+    filas.append(_excel_row(8, [("A", "Ubicación", 3), ("B", ubicacion, 16), ("C", "Actividades", 3), ("D", len(riesgo.get("procesos", [])), 16), ("F", "Controles", 3), ("G", residual.get("total_controles_evaluados", len(riesgo.get("controles", []))), 16)]))
 
     filas.append(_excel_row(10, [("A", "Mapa de calor 5 x 5 y ubicación del riesgo", 2)]))
     filas.append(_excel_row(11, [("A", "La celda marcada como R.I. muestra el punto exacto del riesgo evaluado.", 15)]))
@@ -514,8 +514,8 @@ def construir_excel_detalle_riesgo(riesgo):
     filas.append(_excel_row(17, [("H", "Extremo = 17-25", 8)]))
     filas.append(_excel_row(18, [("A", "Ubicación interpretada", 3), ("B", f"{probabilidad_texto} / {impacto_texto}", 16), ("D", "Nivel", 3), ("E", riesgo["nivel"], _nivel_estilo(riesgo["nivel"]))]))
 
-    filas.append(_excel_row(20, [("A", "Procesos y responsables", 2)]))
-    filas.append(_excel_row(21, [("A", "Proceso", 3), ("B", "Grupo", 3), ("C", "Responsables", 3)]))
+    filas.append(_excel_row(20, [("A", "Actividades y responsables", 2)]))
+    filas.append(_excel_row(21, [("A", "Actividad", 3), ("B", "Grupo", 3), ("C", "Responsables", 3)]))
     fila_actual = 22
     if riesgo["procesos"]:
         grupos = {grupo["id_grupo"]: grupo for grupo in riesgo["grupos"]}
@@ -526,7 +526,7 @@ def construir_excel_detalle_riesgo(riesgo):
             filas.append(_excel_row(fila_actual, [("A", proceso["nombre"], 0), ("B", proceso["grupo_nombre"], 0), ("C", responsables, 0)]))
             fila_actual += 1
     else:
-        filas.append(_excel_row(fila_actual, [("A", "Sin procesos asociados", 0)]))
+        filas.append(_excel_row(fila_actual, [("A", "Sin actividades asociadas", 0)]))
         fila_actual += 1
 
     fila_actual += 1
@@ -632,7 +632,7 @@ def construir_excel_dashboard(datos):
     filas.append(_excel_row(fila, [
         ("A", "Riesgos", 3), ("B", datos.get("riesgos", 0), 0),
         ("D", "Controles", 3), ("E", datos.get("controles", 0), 0),
-        ("G", "Procesos", 3), ("H", datos.get("procesos", 0), 0),
+        ("G", "Actividades", 3), ("H", datos.get("procesos", 0), 0),
         ("J", "Grupos", 3), ("K", datos.get("grupos", 0), 0),
     ]))
     fila += 2
@@ -651,7 +651,7 @@ def construir_excel_dashboard(datos):
     encabezados = [
         "Código", "Riesgo", "Nivel", "Probabilidad", "Impacto", "Puntaje",
         "Inherente", "Prob. residual", "Impacto residual", "Residual",
-        "Procesos", "Responsables", "Controles", "Red. prob.", "Red. impacto"
+        "Actividades", "Responsables", "Controles", "Red. prob.", "Red. impacto"
     ]
     filas.append(_excel_row(fila, [(chr(65 + indice), titulo, 3) for indice, titulo in enumerate(encabezados)]))
     fila += 1
@@ -659,7 +659,7 @@ def construir_excel_dashboard(datos):
     for riesgo in datos.get("riesgos_detalle", []):
         inherente = riesgo.get("riesgo_inherente", {})
         residual = riesgo.get("riesgo_residual", {})
-        procesos = "; ".join(proceso.get("nombre", "") for proceso in riesgo.get("procesos", [])) or "Sin procesos"
+        procesos = "; ".join(proceso.get("nombre", "") for proceso in riesgo.get("procesos", [])) or "Sin actividades"
         responsables = []
         for grupo in riesgo.get("grupos", []):
             for integrante in grupo.get("integrantes", []):
@@ -770,7 +770,7 @@ def exportar_dashboard_excel(request: Request):
             riesgo for riesgo in riesgos_exportar
             if any(str(proceso.get("id_proceso")) == str(id_proceso) for proceso in riesgo.get("procesos", []))
         ]
-        nombre_archivo = f"dashboard_proceso_{id_proceso}.xlsx"
+        nombre_archivo = f"dashboard_actividad_{id_proceso}.xlsx"
 
     niveles_exportar = []
     for nivel in ("MUY BAJO", "BAJO", "MEDIO", "ALTO", "EXTREMO"):

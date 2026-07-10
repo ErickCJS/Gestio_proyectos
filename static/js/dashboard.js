@@ -9,6 +9,8 @@ var modal_dialog = document.querySelector('#projectModal .modal-dialog');
 const modal_titulo = document.getElementById('projectModalLabel');
 const modal_cuerpo = document.getElementById('cuerpo_modal');
 const modal_footer = document.getElementById('modal_footer');
+const togglePreferenciaIa = document.getElementById('togglePreferenciaIa');
+const estadoPreferenciaIa = document.getElementById('estadoPreferenciaIa');
 let timeout_busqueda_personas = null;
 let estado_integrantes_modal = {
     id_grupo: null,
@@ -27,6 +29,31 @@ const accion_estado = () => {
     }
 }
 accion_estado();
+
+const aplicarPreferenciaIa = () => {
+    const visible = localStorage.getItem('preferencia_botones_ia') !== '0';
+    document.body.classList.toggle('ia-buttons-hidden', !visible);
+    if (togglePreferenciaIa) {
+        togglePreferenciaIa.classList.toggle('active', visible);
+        togglePreferenciaIa.setAttribute('aria-pressed', visible ? 'true' : 'false');
+    }
+    if (estadoPreferenciaIa) {
+        estadoPreferenciaIa.title = visible ? 'IA visible' : 'IA oculta';
+        estadoPreferenciaIa.innerHTML = `<i class="bi ${visible ? 'bi-toggle-on' : 'bi-toggle-off'}"></i>`;
+    }
+};
+
+const alternarPreferenciaIa = () => {
+    const visible = localStorage.getItem('preferencia_botones_ia') !== '0';
+    localStorage.setItem('preferencia_botones_ia', visible ? '0' : '1');
+    aplicarPreferenciaIa();
+    if (visible && typeof cambiarFiltroIaRiesgosProcesoModal === 'function') {
+        cambiarFiltroIaRiesgosProcesoModal('sin_ia');
+    }
+};
+
+aplicarPreferenciaIa();
+togglePreferenciaIa?.addEventListener('click', alternarPreferenciaIa);
 
 const accion_menu = () => {
     estado_sider = estado_sider == 1 ? 0 : 1 ;
@@ -66,13 +93,25 @@ function construirFormularioRiesgo(config = {}) {
             <div class="row g-4 align-items-start">
                 <div class="col-lg-6">
                     <div class="mb-3">
-                        <label class="form-label modal-label">Nombre del riesgo</label>
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                            <label class="form-label modal-label mb-0">Nombre del riesgo</label>
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-ia-riesgo d-inline-flex align-items-center gap-1"
+                                data-ia-control
+                                onclick="recomendarDatosRiesgoFormulario(this)"
+                                title="Completar riesgo con IA">
+                                <i class="bi bi-suit-diamond-fill"></i>
+                                <span>IA</span>
+                            </button>
+                        </div>
                         <input type="text" name="nombre" class="form-control" value="${nombre}" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label modal-label">Descripción</label>
                         <textarea name="descripcion" rows="3" class="form-control">${descripcion}</textarea>
                     </div>
+                    <div id="resultadoIaRiesgoFormulario" class="riesgo-ia-result d-none"></div>
                     <div class="mb-3">
                         <label class="form-label modal-label">Impacto</label>
                         <select id="impacto" name="impacto" class="form-select" onchange="actualizarMapaRiesgo()">
@@ -104,19 +143,19 @@ function construirFormularioRiesgo(config = {}) {
                         <div class="riesgo-modal-axis">Probabilidad</div>
                         <div class="riesgo-modal-matrix-content">
                             <div class="riesgo-modal-xlabels">
-                                <div>1<br><span>Ins.</span></div>
-                                <div>2<br><span>Men.</span></div>
-                                <div>3<br><span>Mod.</span></div>
-                                <div>4<br><span>May.</span></div>
-                                <div>5<br><span>Cat.</span></div>
+                                <div><span>Ins.</span></div>
+                                <div><span>Men.</span></div>
+                                <div><span>Mod.</span></div>
+                                <div><span>May.</span></div>
+                                <div><span>Cat.</span></div>
                             </div>
                             <div class="riesgo-modal-grid-row">
                                 <div class="riesgo-modal-ylabels">
-                                    <div>5<br><span>C.S.</span></div>
-                                    <div>4<br><span>Prob.</span></div>
-                                    <div>3<br><span>Pos.</span></div>
-                                    <div>2<br><span>Imp.</span></div>
-                                    <div>1<br><span>Rar.</span></div>
+                                    <div><span>C.S.</span></div>
+                                    <div><span>Prob.</span></div>
+                                    <div><span>Pos.</span></div>
+                                    <div><span>Imp.</span></div>
+                                    <div><span>Rar.</span></div>
                                 </div>
                                 <div class="riesgo-modal-grid-wrap">
                                     <div id="mapaRiesgoModal" class="riesgo-modal-grid">
@@ -128,16 +167,185 @@ function construirFormularioRiesgo(config = {}) {
                         </div>
                     </div>
                     <div class="riesgo-modal-legend">
-                        <span><i style="background:#d9ead3"></i>Muy bajo 1</span>
-                        <span><i style="background:#22c55e"></i>Bajo 2-4</span>
-                        <span><i style="background:#fbbf24"></i>Medio 5-9</span>
-                        <span><i style="background:#f97316"></i>Alto 10-16</span>
-                        <span><i style="background:#ef4444"></i>Extremo 17-25</span>
+                        <span><i style="background:#d9ead3"></i>Muy bajo</span>
+                        <span><i style="background:#22c55e"></i>Bajo</span>
+                        <span><i style="background:#fbbf24"></i>Medio</span>
+                        <span><i style="background:#f97316"></i>Alto</span>
+                        <span><i style="background:#ef4444"></i>Extremo</span>
                     </div>
                 </div>
             </div>
         </form>
     `;
+}
+
+async function recomendarDatosRiesgoFormulario(boton) {
+    const form = boton?.closest('form');
+    if (!form) return;
+
+    const nombreCampo = form.querySelector('[name="nombre"]');
+    const nombre = nombreCampo?.value?.trim() || '';
+    const descripcionActual = form.querySelector('[name="descripcion"]')?.value?.trim() || '';
+    const salida = form.querySelector('#resultadoIaRiesgoFormulario');
+
+    if (!nombre) {
+        if (salida) {
+            salida.classList.remove('d-none');
+            salida.textContent = 'Escribe el nombre del riesgo antes de usar IA.';
+        }
+        return;
+    }
+
+    const contenidoOriginal = boton.innerHTML;
+    boton.disabled = true;
+    boton.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>IA</span>';
+    if (salida) {
+        salida.classList.remove('d-none');
+        salida.innerHTML = '<strong>Razonando con IA...</strong><span>Estimando descripcion, impacto y probabilidad.</span>';
+    }
+
+    try {
+        const respuesta = await fetch('/riesgo/recomendar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+                nombre,
+                descripcion: descripcionActual
+            })
+        });
+        const datos = await respuesta.json();
+        if (!respuesta.ok) throw new Error(datos.detail || 'No se pudo obtener la recomendacion.');
+
+        const descripcion = form.querySelector('[name="descripcion"]');
+        const impacto = form.querySelector('[name="impacto"]');
+        const probabilidad = form.querySelector('[name="probabilidad"]');
+
+        if (descripcion && datos.descripcion) descripcion.value = datos.descripcion;
+        if (impacto && datos.impacto) impacto.value = datos.impacto;
+        if (probabilidad && datos.probabilidad) probabilidad.value = datos.probabilidad;
+
+        if (typeof actualizarMapaRiesgo === 'function') actualizarMapaRiesgo();
+
+        if (salida) {
+            salida.innerHTML = `
+                <strong>Por que la IA sugiere esto</strong>
+                <span>${escaparHtmlRiesgo(datos.explicacion || 'La recomendacion se basa en el nombre y la descripcion ingresados.')}</span>
+                <em>Nivel sugerido: ${escaparHtmlRiesgo(datos.nivel || '-')}</em>
+            `;
+        }
+    } catch (error) {
+        if (salida) {
+            salida.classList.remove('d-none');
+            salida.textContent = error.message;
+        }
+    } finally {
+        boton.disabled = false;
+        boton.innerHTML = contenidoOriginal;
+    }
+}
+
+async function recomendarDatosControlFormulario(boton) {
+    const form = boton?.closest('form');
+    if (!form) return;
+
+    const nombre = form.querySelector('[name="nombre"]')?.value?.trim() || '';
+    const descripcionActual = form.querySelector('[name="descripcion"]')?.value?.trim() || '';
+    const selectRiesgo = form.querySelector('[name="id_riesgo"]');
+    const opcionRiesgo = selectRiesgo?.selectedOptions?.[0];
+    const salida = form.querySelector('#resultadoIaControlFormulario');
+
+    if (!selectRiesgo?.value) {
+        if (salida) {
+            salida.classList.remove('d-none');
+            salida.textContent = 'Selecciona el riesgo asociado antes de usar IA.';
+        }
+        return;
+    }
+
+    window.controlesIaSugeridosSesion = window.controlesIaSugeridosSesion || {};
+    const memoriaRiesgo = window.controlesIaSugeridosSesion[selectRiesgo.value] || [];
+    const nombreActualFueSugerido = nombre && memoriaRiesgo.includes(nombre.toLowerCase());
+    const nombreParaIa = nombreActualFueSugerido ? '' : nombre;
+    const contenidoOriginal = boton.innerHTML;
+    boton.disabled = true;
+    boton.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>IA</span>';
+    if (salida) {
+        salida.classList.remove('d-none');
+        salida.innerHTML = '<strong>Razonando con IA...</strong><span>Usando el riesgo seleccionado como contexto.</span>';
+    }
+
+    try {
+        const respuesta = await fetch('/control/recomendar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+                nombre: nombreParaIa,
+                descripcion: descripcionActual,
+                nombres_excluidos: memoriaRiesgo,
+                riesgo: {
+                    id_riesgo: selectRiesgo.value,
+                    nombre: opcionRiesgo?.dataset?.nombre || opcionRiesgo?.textContent || '',
+                    descripcion: opcionRiesgo?.dataset?.descripcion || '',
+                    probabilidad: opcionRiesgo?.dataset?.probabilidad || '',
+                    impacto: opcionRiesgo?.dataset?.impacto || '',
+                    nivel: opcionRiesgo?.dataset?.nivel || '',
+                    maximo_baja_probabilidad: opcionRiesgo?.dataset?.maximoProbabilidad || '',
+                    maximo_baja_impacto: opcionRiesgo?.dataset?.maximoImpacto || ''
+                }
+            })
+        });
+        const datos = await respuesta.json();
+        if (!respuesta.ok) throw new Error(datos.detail || 'No se pudo obtener la recomendacion.');
+
+        const nombreControl = form.querySelector('[name="nombre"]');
+        const descripcion = form.querySelector('[name="descripcion"]');
+        const tipo = form.querySelector('[name="tipo"]');
+        const solidez = form.querySelector('[name="solidez_control"]');
+        const mitigacionProbabilidad = form.querySelector('[name="mitigacion_probabilidad"]');
+        const mitigacionImpacto = form.querySelector('[name="mitigacion_impacto"]');
+
+        if (nombreControl && datos.nombre && (!nombreControl.value.trim() || nombreActualFueSugerido)) {
+            nombreControl.value = datos.nombre;
+        }
+        if (datos.nombre) {
+            const nombreNormalizado = String(datos.nombre).trim().toLowerCase();
+            if (nombreNormalizado && !memoriaRiesgo.includes(nombreNormalizado)) {
+                memoriaRiesgo.push(nombreNormalizado);
+                window.controlesIaSugeridosSesion[selectRiesgo.value] = memoriaRiesgo.slice(-20);
+            }
+        }
+        if (descripcion && datos.descripcion) descripcion.value = datos.descripcion;
+        if (tipo && datos.tipo) tipo.value = datos.tipo;
+        if (solidez && datos.solidez_control) solidez.value = datos.solidez_control;
+        if (mitigacionProbabilidad && datos.mitigacion_probabilidad !== undefined) {
+            mitigacionProbabilidad.value = datos.mitigacion_probabilidad;
+            if (mitigacionProbabilidad.nextElementSibling) {
+                mitigacionProbabilidad.nextElementSibling.textContent = `${datos.mitigacion_probabilidad}%`;
+            }
+        }
+        if (mitigacionImpacto && datos.mitigacion_impacto !== undefined) {
+            mitigacionImpacto.value = datos.mitigacion_impacto;
+            if (mitigacionImpacto.nextElementSibling) {
+                mitigacionImpacto.nextElementSibling.textContent = `${datos.mitigacion_impacto}%`;
+            }
+        }
+
+        if (salida) {
+            salida.innerHTML = `
+                <strong>Por que la IA sugiere esto</strong>
+                <span>${escaparHtmlRiesgo(datos.explicacion || 'La recomendacion se basa en el control y el riesgo seleccionado.')}</span>
+                <em>${escaparHtmlRiesgo(datos.tipo || '-')} · ${escaparHtmlRiesgo(datos.solidez_control || '-')}</em>
+            `;
+        }
+    } catch (error) {
+        if (salida) {
+            salida.classList.remove('d-none');
+            salida.textContent = error.message;
+        }
+    } finally {
+        boton.disabled = false;
+        boton.innerHTML = contenidoOriginal;
+    }
 }
 const formatearPorcentajeControl = (valor) => {
     if (valor === undefined || valor === null || valor === '') return '-';
@@ -348,6 +556,60 @@ const mostrar_modal = (tipo, data = {}) => {
             break;
         }
 
+        case 'agregar_riesgo_proceso': {
+            modalClass = 'modal-dialog modal-dialog-centered modal-lg modal-agregar-riesgo-proceso';
+            titulo = `Agregar riesgos a ${data.nombre || 'actividad'}`;
+            botones = `
+                <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">Cancelar</button>
+                <button type="button" class="btn btn-sm btn_primario" onclick="guardarRiesgosProcesoDesdeModal()">
+                    <i class="bi bi-link-45deg me-1"></i>
+                    Guardar cambios
+                </button>
+            `;
+            html = `
+                <div class="agregar-riesgo-modal-head">
+                    <div>
+                        <span>Riesgos existentes</span>
+                        <strong>Selecciona los riesgos que aplican a esta actividad</strong>
+                    </div>
+                </div>
+                <div id="resultadoIaAgregarRiesgoProceso" class="agregar-riesgo-ia-result d-none"></div>
+                <div class="agregar-riesgo-modo" role="group" aria-label="Filtro de recomendación">
+                    <button type="button" class="active" data-filtro-riesgo-ia="sin_ia" aria-pressed="true" onclick="cambiarFiltroIaRiesgosProcesoModal('sin_ia')">
+                        <i class="bi bi-list-check"></i>
+                        Sin IA
+                    </button>
+                    <button type="button" data-ia-control data-filtro-riesgo-ia="con_ia" aria-pressed="false" onclick="cambiarFiltroIaRiesgosProcesoModal('con_ia')">
+                        <i class="bi bi-suit-diamond-fill"></i>
+                        Con IA
+                    </button>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-8">
+                        <input id="buscarRiesgoProcesoModal" class="form-control form-control-sm" placeholder="Buscar por nombre o descripción" oninput="filtrarRiesgosProcesoModal()">
+                    </div>
+                    <div class="col-md-4">
+                        <select id="nivelRiesgoProcesoModal" class="form-select form-select-sm" onchange="filtrarRiesgosProcesoModal()">
+                            <option value="">Todos los niveles</option>
+                            <option value="MUY BAJO">Muy bajo</option>
+                            <option value="BAJO">Bajo</option>
+                            <option value="MEDIO">Medio</option>
+                            <option value="ALTO">Alto</option>
+                            <option value="EXTREMO">Extremo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <small class="text-secondary">Riesgos disponibles</small>
+                    <span id="contadorRiesgosProcesoModal" class="np-count">0</span>
+                </div>
+                <div id="listaRiesgosProcesoModal" class="agregar-riesgo-lista">
+                    <div class="agregar-riesgo-empty">Cargando riesgos...</div>
+                </div>
+            `;
+            break;
+        }
+
         case 'editar_riesgo': {
             modalClass = 'modal-dialog modal-dialog-centered modal-lg modal-riesgo';
             titulo = "Editar Riesgo";
@@ -372,40 +634,59 @@ const mostrar_modal = (tipo, data = {}) => {
         }
 
         case 'nproceso': {
-            titulo = "Crear Proceso";
+            modalClass = 'modal-dialog modal-dialog-centered modal-xl modal-nuevo-proceso-ia';
+            titulo = "Crear Actividad";
             const grupos = (window.catalogosProcesos && window.catalogosProcesos.grupos) ? window.catalogosProcesos.grupos : [];
             const opcionesGrupos = grupos.map(item => `<option value="${item.id_grupo}">${item.nombre}</option>`).join('');
             botones = `
                 <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">Cancelar</button>
                 <button type="submit" class="btn btn-sm btn_primario" form="frm_crearproceso">
                     <i class="bi bi-floppy me-2"></i>
-                    Guardar proceso
+                    Guardar actividad
                 </button>
             `;
             html = `
-                <form id="frm_crearproceso" method="post" action="/crear_proceso">
-                    <div class="mb-3">
-                        <label class="form-label modal-label">Nombre del proceso</label>
-                        <input type="text" class="form-control" name="nombre" placeholder="Ej. Gestión de Matrículas" maxlength="150" required>
+                <form id="frm_crearproceso" method="post" action="/crear_proceso" onsubmit="sincronizarRiesgosSeleccionadosNuevoProceso(this)">
+                    <div class="nuevo-proceso-form-head">
+                        <div class="nuevo-proceso-field-main">
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                                <label class="form-label modal-label mb-0">Nombre de la actividad</label>
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-ia-riesgo d-inline-flex align-items-center gap-1"
+                                    data-ia-control
+                                    id="btnIaNuevoProceso"
+                                    onclick="recomendarRiesgosNuevoProceso(this)"
+                                    title="Asistente IA para nueva actividad">
+                                    <i class="bi bi-suit-diamond-fill"></i>
+                                    <span>IA</span>
+                                </button>
+                            </div>
+                            <input type="text" class="form-control" name="nombre" placeholder="Ej. Subir cambios al repositorio" maxlength="150" oninput="limpiarSugerenciaIaNuevoProceso(this.form)" required>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label modal-label">Descripción</label>
-                        <textarea class="form-control" name="descripcion" rows="3" maxlength="255" placeholder="Descripción opcional"></textarea>
+                    <div class="nuevo-proceso-form-grid">
+                        <div>
+                            <label class="form-label modal-label">Descripción</label>
+                            <textarea class="form-control" name="descripcion" rows="2" maxlength="255" placeholder="La IA puede completarla si la dejas vacía." oninput="this.dataset.iaGenerada = '0'"></textarea>
+                        </div>
+                        <div>
+                            <label class="form-label modal-label">Grupo responsable</label>
+                            <select class="form-select" name="id_grupo" onchange="this.dataset.iaGenerada = '0'" required>
+                                <option value="">Seleccione un grupo</option>
+                                ${opcionesGrupos}
+                            </select>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label modal-label">Grupo responsable</label>
-                        <select class="form-select" name="id_grupo" required>
-                            <option value="">Seleccione un grupo</option>
-                            ${opcionesGrupos}
-                        </select>
-                    </div>
+                    <div id="riesgosSeleccionadosNuevoProcesoInputs"></div>
+                    <div id="resultadoIaNuevoProceso" class="nuevo-proceso-ia-result"></div>
                 </form>
             `;
             break;
         }
 
         case 'editar_proceso': {
-            titulo = `Editar Proceso #${String(data.id_proceso).padStart(3, '0')}`;
+            titulo = `Editar Actividad #${String(data.id_proceso).padStart(3, '0')}`;
             const gruposEd = (window.catalogosProcesos && window.catalogosProcesos.grupos) ? window.catalogosProcesos.grupos : [];
             const opcionesGruposEd = gruposEd.map(item => `<option value="${item.id_grupo}" ${String(item.id_grupo) === String(data.id_grupo) ? 'selected' : ''}>${item.nombre}</option>`).join('');
             botones = `
@@ -418,7 +699,7 @@ const mostrar_modal = (tipo, data = {}) => {
             html = `
                 <form id="frm_editarproceso" method="post" action="/procesos/${data.id_proceso}/editar">
                     <div class="mb-3">
-                        <label class="form-label modal-label">Nombre del proceso</label>
+                        <label class="form-label modal-label">Nombre de la actividad</label>
                         <input type="text" class="form-control" name="nombre" value="${data.nombre ?? ''}" maxlength="150" required>
                     </div>
                     <div class="mb-3">
@@ -441,7 +722,7 @@ const mostrar_modal = (tipo, data = {}) => {
             titulo = "Crear Control";
             const catalogos = window.catalogosControles || {};
             const riesgos = Array.isArray(catalogos.riesgos) ? catalogos.riesgos : [];
-            const opcionesRiesgos = riesgos.map(item => `<option value="${item.id_riesgo}" data-maximo-probabilidad="${item.maximo_baja_probabilidad ?? 100}" data-maximo-impacto="${item.maximo_baja_impacto ?? 100}">${item.nombre}</option>`).join('');
+            const opcionesRiesgos = riesgos.map(item => `<option value="${item.id_riesgo}" data-nombre="${escaparHtmlRiesgo(item.nombre ?? '')}" data-descripcion="${escaparHtmlRiesgo(item.descripcion ?? '')}" data-probabilidad="${item.probabilidad ?? ''}" data-impacto="${item.impacto ?? ''}" data-nivel="${item.nivel ?? ''}" data-maximo-probabilidad="${item.maximo_baja_probabilidad ?? 100}" data-maximo-impacto="${item.maximo_baja_impacto ?? 100}">${item.nombre}</option>`).join('');
             botones = `
                 <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">Cancelar</button>
                 <button type="submit" class="btn btn-sm btn_primario" form="frm_crearcontrol">
@@ -459,13 +740,25 @@ const mostrar_modal = (tipo, data = {}) => {
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label modal-label">Nombre del control</label>
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                            <label class="form-label modal-label mb-0">Nombre del control</label>
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-ia-riesgo d-inline-flex align-items-center gap-1"
+                                data-ia-control
+                                onclick="recomendarDatosControlFormulario(this)"
+                                title="Completar control con IA">
+                                <i class="bi bi-suit-diamond-fill"></i>
+                                <span>IA</span>
+                            </button>
+                        </div>
                         <input type="text" class="form-control" name="nombre" placeholder="Ej. Revisión de accesos" maxlength="150" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label modal-label">Descripción</label>
                         <textarea class="form-control" name="descripcion" rows="3" maxlength="255" placeholder="Describe cómo funciona el control."></textarea>
                     </div>
+                    <div id="resultadoIaControlFormulario" class="riesgo-ia-result d-none"></div>
                     <div class="mb-3">
                         <label class="form-label modal-label">Tipo de control</label>
                         <select class="form-select" name="tipo" required>
@@ -515,7 +808,7 @@ const mostrar_modal = (tipo, data = {}) => {
             titulo = `Editar Control #${String(data.id_control).padStart(3, '0')}`;
             const catalogosEd = window.catalogosControles || {};
             const riesgosEd = Array.isArray(catalogosEd.riesgos) ? catalogosEd.riesgos : [];
-            const opcionesRiesgosEd = riesgosEd.map(item => `<option value="${item.id_riesgo}" data-maximo-probabilidad="${item.maximo_baja_probabilidad ?? 100}" data-maximo-impacto="${item.maximo_baja_impacto ?? 100}" ${String(item.id_riesgo) === String(data.id_riesgo) ? 'selected' : ''}>${item.nombre}</option>`).join('');
+            const opcionesRiesgosEd = riesgosEd.map(item => `<option value="${item.id_riesgo}" data-nombre="${escaparHtmlRiesgo(item.nombre ?? '')}" data-descripcion="${escaparHtmlRiesgo(item.descripcion ?? '')}" data-probabilidad="${item.probabilidad ?? ''}" data-impacto="${item.impacto ?? ''}" data-nivel="${item.nivel ?? ''}" data-maximo-probabilidad="${item.maximo_baja_probabilidad ?? 100}" data-maximo-impacto="${item.maximo_baja_impacto ?? 100}" ${String(item.id_riesgo) === String(data.id_riesgo) ? 'selected' : ''}>${item.nombre}</option>`).join('');
             botones = `
                 <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">Cancelar</button>
                 <button type="submit" class="btn btn-sm btn_primario" form="frm_editarcontrol">
@@ -533,13 +826,25 @@ const mostrar_modal = (tipo, data = {}) => {
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label modal-label">Nombre del control</label>
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                            <label class="form-label modal-label mb-0">Nombre del control</label>
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-ia-riesgo d-inline-flex align-items-center gap-1"
+                                data-ia-control
+                                onclick="recomendarDatosControlFormulario(this)"
+                                title="Completar control con IA">
+                                <i class="bi bi-suit-diamond-fill"></i>
+                                <span>IA</span>
+                            </button>
+                        </div>
                         <input type="text" class="form-control" name="nombre" value="${data.nombre ?? ''}" maxlength="150" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label modal-label">Descripción</label>
                         <textarea class="form-control" name="descripcion" rows="3" maxlength="255">${data.descripcion ?? ''}</textarea>
                     </div>
+                    <div id="resultadoIaControlFormulario" class="riesgo-ia-result d-none"></div>
                     <div class="mb-3">
                         <label class="form-label modal-label">Tipo de control</label>
                         <select class="form-select" name="tipo" required>
@@ -623,7 +928,7 @@ const mostrar_modal = (tipo, data = {}) => {
             break;
 
         case 'ver_proceso':
-            titulo = `Proceso #${String(data.id_proceso).padStart(3, '0')}`;
+            titulo = `Actividad #${String(data.id_proceso).padStart(3, '0')}`;
             botones = `
                 <button type="button" class="btn btn-sm btn-secondary" onclick="cerrar_modal()">Cerrar</button>
             `;
@@ -703,6 +1008,9 @@ const mostrar_modal = (tipo, data = {}) => {
         el_modal.addEventListener('shown.bs.modal', repintarMapaRiesgo, { once: true });
     }
     modal.show();
+    if (tipo === 'agregar_riesgo_proceso' && typeof cargarRiesgosDisponiblesProceso === 'function') {
+        cargarRiesgosDisponiblesProceso(data.id_proceso);
+    }
     if (debeActualizarMapa) {
         setTimeout(repintarMapaRiesgo, 380);
     }
@@ -1212,7 +1520,7 @@ const eliminarGrupo = async (id_grupo) => {
 }
 
 const eliminarProceso = async (id_proceso) => {
-    if (!confirm('¿Seguro que deseas eliminar este proceso?')) {
+    if (!confirm('¿Seguro que deseas eliminar esta actividad?')) {
         return;
     }
 
@@ -1222,7 +1530,7 @@ const eliminarProceso = async (id_proceso) => {
         });
 
         if (!respuesta.ok) {
-            throw new Error('No se pudo eliminar el proceso');
+            throw new Error('No se pudo eliminar la actividad');
         }
 
         window.location.reload();
@@ -1442,12 +1750,12 @@ async function eliminarRiesgo(id) {
 }
 
 function construirItemProcesoDisponible(idRiesgo, proceso) {
-    const nombre = escaparHtmlRiesgo(proceso.nombre || 'Proceso');
+    const nombre = escaparHtmlRiesgo(proceso.nombre || 'Actividad');
     const filtro = escaparHtmlRiesgo(String(proceso.nombre || '').toLowerCase());
     return `
         <div class="list-group-item d-flex justify-content-between align-items-center gap-2" data-nombre="${filtro}">
             <span class="text-truncate">${nombre}</span>
-            <button type="button" class="btn btn-sm btn-success" onclick="agregarProceso(${idRiesgo}, ${proceso.id_proceso})" title="Asociar proceso">
+            <button type="button" class="btn btn-sm btn-success" onclick="agregarProceso(${idRiesgo}, ${proceso.id_proceso})" title="Asociar actividad">
                 <i class="bi bi-plus"></i>
             </button>
         </div>
@@ -1455,11 +1763,11 @@ function construirItemProcesoDisponible(idRiesgo, proceso) {
 }
 
 function construirItemProcesoAsociado(idRiesgo, proceso) {
-    const nombre = escaparHtmlRiesgo(proceso.nombre || 'Proceso');
+    const nombre = escaparHtmlRiesgo(proceso.nombre || 'Actividad');
     return `
         <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
             <span class="text-truncate">${nombre}</span>
-            <button type="button" class="btn btn-sm btn-outline-danger" onclick="quitarProceso(${idRiesgo}, ${proceso.id_proceso})" title="Quitar proceso">
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="quitarProceso(${idRiesgo}, ${proceso.id_proceso})" title="Quitar actividad">
                 <i class="bi bi-x-lg"></i>
             </button>
         </div>
@@ -1468,14 +1776,14 @@ function construirItemProcesoAsociado(idRiesgo, proceso) {
 
 function mostrarCuerpoProcesos(idRiesgo) {
     modal_dialog.className = 'modal-dialog modal-dialog-centered modal-lg modal-procesos-riesgo';
-    modal_titulo.innerHTML = 'Procesos asociados';
+    modal_titulo.innerHTML = 'Actividades asociadas';
     modal_cuerpo.innerHTML = `
         <div class="procesos-riesgo-modal">
             <div class="procesos-riesgo-hero">
                 <div>
                     <span class="procesos-riesgo-kicker">Relación del riesgo</span>
-                    <strong>Conecta este riesgo con los procesos donde impacta</strong>
-                    <small>Asocia o retira procesos sin salir de la tabla.</small>
+                    <strong>Conecta este riesgo con las actividades donde impacta</strong>
+                    <small>Asocia o retira actividades sin salir de la tabla.</small>
                 </div>
                 <div id="procesosModalEstado" class="procesos-riesgo-status">
                     <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
@@ -1489,13 +1797,13 @@ function mostrarCuerpoProcesos(idRiesgo) {
                         <div class="procesos-riesgo-heading">
                             <span><i class="bi bi-search"></i></span>
                             <div>
-                                <strong>Procesos disponibles</strong>
+                                <strong>Actividades disponibles</strong>
                                 <small>Busca y agrega los que correspondan.</small>
                             </div>
                         </div>
                         <div class="input-group mb-3">
                             <span class="input-group-text"><i class="bi bi-search"></i></span>
-                            <input id="buscarProceso" class="form-control" placeholder="Filtrar procesos..." disabled>
+                            <input id="buscarProceso" class="form-control" placeholder="Filtrar actividades..." disabled>
                         </div>
                         <div id="listaBusqueda" class="list-group procesos-riesgo-lista">
                             <div class="list-group-item text-secondary">Preparando lista...</div>
@@ -1508,7 +1816,7 @@ function mostrarCuerpoProcesos(idRiesgo) {
                         <div class="procesos-riesgo-heading">
                             <span><i class="bi bi-diagram-3"></i></span>
                             <div>
-                                <strong>Procesos asociados</strong>
+                                <strong>Actividades asociadas</strong>
                                 <small>Resumen activo para este riesgo.</small>
                             </div>
                             <em id="contadorProcesosAsociados">0</em>
@@ -1533,12 +1841,12 @@ function actualizarEstadoProcesos(procesos) {
 
     if (!procesos.length) {
         estado.className = 'procesos-riesgo-status empty';
-        estado.innerHTML = '<i class="bi bi-diagram-3"></i><span>Sin procesos</span>';
+        estado.innerHTML = '<i class="bi bi-diagram-3"></i><span>Sin actividades</span>';
         return;
     }
 
     estado.className = 'procesos-riesgo-status ready';
-    estado.innerHTML = `<i class="bi bi-check-circle"></i><span>${procesos.length} asociado${procesos.length === 1 ? '' : 's'}</span>`;
+    estado.innerHTML = `<i class="bi bi-check-circle"></i><span>${procesos.length} asociada${procesos.length === 1 ? '' : 's'}</span>`;
 }
 
 async function verProcesos(id) {
@@ -1550,7 +1858,7 @@ async function verProcesos(id) {
         ]);
 
         if (!respuestaAsociados.ok || !respuestaDisponibles.ok) {
-            throw new Error('No se pudieron cargar los procesos.');
+            throw new Error('No se pudieron cargar las actividades.');
         }
 
         const [procesos, disponibles] = await Promise.all([
@@ -1582,18 +1890,18 @@ async function agregarProceso(idRiesgo, idProceso) {
             }
         );
         if (!respuesta.ok) {
-            throw new Error("No se pudo asociar el proceso.");
+            throw new Error("No se pudo asociar la actividad.");
         }
         await recargarProcesos(idRiesgo);
         mostrarFlash(
             "success",
-            "Proceso asociado correctamente."
+            "Actividad asociada correctamente."
         );
     }
     catch (error) {
         mostrarFlash(
             "danger",
-            error.message || "No se pudo asociar el proceso."
+            error.message || "No se pudo asociar la actividad."
         );
     }
 }
@@ -1608,19 +1916,19 @@ async function quitarProceso(idRiesgo,idProceso){
         );
         if(!respuesta.ok){
             throw new Error(
-                "No se pudo quitar el proceso."
+                "No se pudo quitar la actividad."
             );
         }
         await recargarProcesos(idRiesgo);
         mostrarFlash(
             "info",
-            "Proceso retirado correctamente."
+            "Actividad retirada correctamente."
         );
     }
     catch(error){
         mostrarFlash(
             "danger",
-            error.message || "No se pudo quitar el proceso."
+            error.message || "No se pudo quitar la actividad."
         );
     }
 }
@@ -1632,7 +1940,7 @@ async function recargarProcesos(idRiesgo) {
     ]);
 
     if (!asociados.ok || !disponibles.ok) {
-        throw new Error('No se pudieron actualizar los procesos.');
+        throw new Error('No se pudieron actualizar las actividades.');
     }
 
     const [procesos, lista] = await Promise.all([
@@ -1666,7 +1974,7 @@ function actualizarListaBusqueda(idRiesgo, disponibles) {
 
     contenedor.innerHTML = disponibles.length
         ? disponibles.map((proceso) => construirItemProcesoDisponible(idRiesgo, proceso)).join('')
-        : '<div class="list-group-item text-secondary">No hay procesos disponibles para asociar.</div>';
+        : '<div class="list-group-item text-secondary">No hay actividades disponibles para asociar.</div>';
 }
 
 function actualizarListaAsociados(idRiesgo, procesos) {
@@ -1676,7 +1984,7 @@ function actualizarListaAsociados(idRiesgo, procesos) {
 
     contenedor.innerHTML = procesos.length
         ? procesos.map((proceso) => construirItemProcesoAsociado(idRiesgo, proceso)).join('')
-        : '<div class="list-group-item text-secondary">Sin procesos asociados.</div>';
+        : '<div class="list-group-item text-secondary">Sin actividades asociadas.</div>';
 
     if (contador) {
         contador.textContent = procesos.length;

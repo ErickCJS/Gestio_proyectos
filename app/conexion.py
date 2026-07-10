@@ -3,10 +3,10 @@ import pymysql
 def conectar():
     try:
         conn = pymysql.connect(
-            user = "avnadmin",
-            password="AVNS_ST7yKEJfvgA53x2llZc",
-            port=24299,
-            host="mysql-31b04eb7-julonerick1-1f47.e.aivencloud.com",
+            user = "root",
+            password="root",
+            port=3307,
+            host="127.0.0.1",
             database="gestion_riesgo",
             cursorclass=pymysql.cursors.DictCursor,
             ssl={"ssl_mode": "REQUIRED"}

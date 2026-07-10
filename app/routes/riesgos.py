@@ -1,9 +1,18 @@
+import json
+import os
+from pathlib import Path
+
 from fastapi import Request
-from fastapi.responses import RedirectResponse
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse, RedirectResponse
 try:
     from .. import conexion
+    from ..ia_config import cargar_configuracion_ia as cargar_configuracion_ia_global
+    from ..ia_config import cargar_configuraciones_ia, detalle_error_ia
 except ImportError:
     import conexion
+    from ia_config import cargar_configuracion_ia as cargar_configuracion_ia_global
+    from ia_config import cargar_configuraciones_ia, detalle_error_ia
 
 
 def rutas(app, templates):
@@ -50,6 +59,33 @@ def rutas(app, templates):
             return "ALTO"
         return "EXTREMO"
 
+    def cargar_valor_env(nombre):
+        valor = os.getenv(nombre)
+        if valor:
+            return valor
+
+        env_path = Path(__file__).resolve().parents[2] / ".env"
+        if not env_path.exists():
+            return None
+
+        with open(env_path, "r", encoding="utf-8-sig") as env_file:
+            for linea in env_file:
+                linea = linea.strip()
+                if not linea or linea.startswith("#") or "=" not in linea:
+                    continue
+                clave, valor = linea.split("=", 1)
+                if clave.strip() == nombre:
+                    return valor.strip().strip('"').strip("'") or None
+
+        return None
+
+    def cargar_configuracion_ia():
+        return cargar_configuracion_ia_global()
+
+    def texto_corto(valor, maximo):
+        texto = " ".join(str(valor or "").split())
+        return texto[:maximo]
+
     # ----------------------------------------
     # CONSULTAS
     # ----------------------------------------
@@ -89,7 +125,6 @@ def rutas(app, templates):
             """,(id_riesgo,))
             return cursor.fetchall()
 
-
     # --------------------------------------------------
     # VISTA
     # --------------------------------------------------
@@ -127,6 +162,104 @@ def rutas(app, templates):
                 "mapa":mapa,
                 "flash":flash
             }
+        )
+
+
+    # --------------------------------------------------
+    # RECOMENDAR CON IA
+    # --------------------------------------------------
+
+    @app.post("/riesgo/recomendar")
+    async def recomendar_riesgo(request: Request):
+        try:
+            datos = await request.json()
+        except Exception:
+            return JSONResponse({"detail": "La solicitud no tiene un formato valido."}, status_code=400)
+
+        nombre = (datos.get("nombre") or "").strip()
+        descripcion = (datos.get("descripcion") or "").strip()
+
+        if not nombre:
+            return JSONResponse({"detail": "Ingrese el nombre del riesgo antes de usar IA."}, status_code=400)
+
+        configuraciones_ia = cargar_configuraciones_ia()
+        if not configuraciones_ia:
+            return JSONResponse(
+                {"detail": "Configure GROQ_API_KEY, OPENAI_API_KEY o LISTA_APIS en el entorno o en el archivo .env."},
+                status_code=503,
+            )
+
+        try:
+            from openai import OpenAI
+        except ImportError:
+            return JSONResponse(
+                {"detail": "Instale la dependencia openai con: pip install openai"},
+                status_code=503,
+            )
+
+        entrada = {
+            "riesgo": {
+                "nombre": texto_corto(nombre, 120),
+                "descripcion_actual": texto_corto(descripcion, 300),
+            },
+            "valores_validos": {
+                "impacto": list(valores_impacto.keys()),
+                "probabilidad": list(valores_probabilidad.keys()),
+            },
+            "criterios": [
+                "Cada solicitud es independiente y sin memoria.",
+                "Usa solo el nombre y descripcion_actual recibidos.",
+                "No menciones procesos, proyectos ni datos que no aparezcan en la entrada.",
+                "Devuelve una descripcion profesional y concreta del riesgo.",
+                "Selecciona impacto y probabilidad solo desde valores_validos.",
+                "Explica brevemente por que seleccionaste ese impacto y esa probabilidad.",
+            ],
+        }
+
+        recomendacion = None
+        errores_ia = []
+        for config_ia in configuraciones_ia:
+            try:
+                client = OpenAI(api_key=config_ia["api_key"], base_url=config_ia["base_url"])
+                respuesta = client.responses.create(
+                    model=config_ia["model"],
+                    instructions=(
+                        "Eres especialista en gestion de riesgos para MAGERISK. "
+                        "Ayudas a completar un formulario de riesgo. "
+                        "Responde solo JSON valido con: descripcion, impacto, probabilidad, explicacion. "
+                        "No inventes contexto externo ni uses memoria de solicitudes anteriores."
+                    ),
+                    input=json.dumps(entrada, ensure_ascii=False),
+                    text={"format": {"type": "json_object"}},
+                )
+                recomendacion = json.loads(respuesta.output_text)
+                break
+            except json.JSONDecodeError as error:
+                errores_ia.append(detalle_error_ia(error, config_ia))
+            except Exception as error:
+                errores_ia.append(detalle_error_ia(error, config_ia))
+
+        if recomendacion is None:
+            return JSONResponse(
+                {"detail": "No se pudo recomendar con ninguna API disponible. " + " | ".join(errores_ia[-3:])},
+                status_code=502,
+            )
+
+        impacto = str(recomendacion.get("impacto") or "").strip().upper()
+        probabilidad = str(recomendacion.get("probabilidad") or "").strip().upper()
+        if impacto not in valores_impacto:
+            impacto = "MODERADO"
+        if probabilidad not in valores_probabilidad:
+            probabilidad = "POSIBLE"
+
+        return JSONResponse(
+            content=jsonable_encoder({
+                "descripcion": texto_corto(recomendacion.get("descripcion"), 500),
+                "impacto": impacto,
+                "probabilidad": probabilidad,
+                "nivel": calcular_nivel(impacto, probabilidad),
+                "explicacion": texto_corto(recomendacion.get("explicacion"), 700),
+            })
         )
 
 

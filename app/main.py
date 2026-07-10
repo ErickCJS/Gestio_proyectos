@@ -10,12 +10,16 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import RedirectResponse, Response
 
+
+
 try:
     from .routes import usuario, procesos, riesgos, controles
     from . import conexion
+    from .config import cargar_valor_env
 except ImportError:
     from routes import usuario, procesos, riesgos, controles
     import conexion
+    from config import cargar_valor_env
 
 app = FastAPI()
 
@@ -716,7 +720,7 @@ def construir_excel_dashboard(datos):
 app.mount("/static", StaticFiles(directory=str(BASE_DIR.parent / "static")), name="static")
 app.add_middleware(
     SessionMiddleware,
-    secret_key="mi_clave_super_secreta"
+    secret_key=cargar_valor_env("APP_SECRET_KEY", "dev-secret-key-change-me")
 )
 
 @app.get("/")
